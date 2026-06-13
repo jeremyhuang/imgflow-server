@@ -83,7 +83,7 @@ docker compose up -d
 1. 在 Container Manager → 專案 → `imgflow-server`，確認狀態為 **執行中（Running）**
 2. 瀏覽器開啟 `http://NAS的IP:3000/health`，應看到：
    ```json
-   { "status": "ok", "version": "0.1.4" }
+   { "status": "ok", "version": "0.1.7" }
    ```
 3. 開啟 `http://NAS的IP:3000/admin`，首次進入自動跳 `/admin/setup`，建立管理員帳號後登入
 
@@ -220,7 +220,7 @@ nas-image-service/
 
 ### `package.json`
 
-版本：`0.1.4`，主入口：`src/index.js`。
+版本：`0.1.7`，主入口：`src/index.js`。
 
 **相依套件：**
 
@@ -317,7 +317,9 @@ SQLite 資料庫初始化與 schema 管理。
 | `webpQuality` | int | WebP 品質 |
 | `watermarkUrl` | string | 浮水印圖片 URL |
 | `watermarkPos` | string | 位置代碼（tl/tc/tr/ml/mc/mr/bl/bc/br） |
-| `watermarkScale` | float | 比例（0–1，相對圖片寬度） |
+| `watermarkSizeMode` | string | 大小模式：`scale`（比例，預設）/ `original`（原始尺寸）/ `custom`（自訂寬度） |
+| `watermarkScale` | float | 比例（0–1，相對圖片寬度；sizeMode=scale 時生效） |
+| `watermarkCustomWidth` | int | 自訂浮水印寬度（px；sizeMode=custom 時生效） |
 | `watermarkOpacity` | float | 透明度（0–1） |
 | `watermarkMarginX` | float | 水平邊距（% 圖寬） |
 | `watermarkMarginY` | float | 垂直邊距（% 圖高） |
@@ -577,12 +579,16 @@ Content-Type: multipart/form-data
 
 ```json
 {
-  "actions": ["compress", "watermark", "webp"],
+  "actions": ["resize", "compress", "watermark", "webp"],
   "quality": 82,
   "webpQuality": 80,
+  "resizeLandWidth": 1920,
+  "resizePortHeight": 2560,
   "watermarkUrl": "https://...",
   "watermarkPos": "br",
+  "watermarkSizeMode": "scale",
   "watermarkScale": 0.2,
+  "watermarkCustomWidth": 300,
   "watermarkOpacity": 0.7,
   "watermarkMarginX": 3,
   "watermarkMarginY": 3,
@@ -616,7 +622,7 @@ Content-Type: multipart/form-data
 ### `GET /health`
 
 ```json
-{ "status": "ok", "version": "0.1.5" }
+{ "status": "ok", "version": "0.1.7" }
 ```
 
 ---
@@ -655,6 +661,6 @@ redirect 回設定頁，顯示「已成功連結」
 | 分支 | 版號 |
 |------|------|
 | main | `0.0.1` |
-| develop | `0.1.5` |
+| develop | `0.1.7` |
 
 正式上線版本從 `1.0.0` 開始。

@@ -76,13 +76,15 @@ async function processImage(imageBuffer, options = {}) {
     webpQuality      = 80,
     resizeLandWidth  = 0,
     resizePortHeight = 0,
-    watermarkUrl     = '',
-    watermarkPos     = 'br',
-    watermarkOpacity = 0.7,
-    watermarkScale   = 0.2,
-    watermarkMarginX = 3,
-    watermarkMarginY = 3,
-    minWidthForWm    = 400,
+    watermarkUrl         = '',
+    watermarkPos         = 'br',
+    watermarkSizeMode    = 'scale',  // 'scale' | 'original' | 'custom'
+    watermarkOpacity     = 0.7,
+    watermarkScale       = 0.2,
+    watermarkCustomWidth = 0,
+    watermarkMarginX     = 3,
+    watermarkMarginY     = 3,
+    minWidthForWm        = 400,
   } = options;
 
   const doResize    = actions.includes('resize');
@@ -117,10 +119,20 @@ async function processImage(imageBuffer, options = {}) {
   if (doWatermark && watermarkUrl && width >= minWidthForWm) {
     const wmBuffer = await fetchWatermark(watermarkUrl);
 
-    // 計算浮水印寬度（依比例），維持長寬比
-    const wmW = Math.round(width * watermarkScale);
+    // 依 size_mode 決定浮水印尺寸
     const wmMeta = await sharp(wmBuffer).metadata();
-    const wmH = Math.round(wmW * wmMeta.height / wmMeta.width);
+    let wmW, wmH;
+    if (watermarkSizeMode === 'original') {
+      wmW = wmMeta.width;
+      wmH = wmMeta.height;
+    } else if (watermarkSizeMode === 'custom' && watermarkCustomWidth > 0) {
+      wmW = watermarkCustomWidth;
+      wmH = Math.round(wmW * wmMeta.height / wmMeta.width);
+    } else {
+      // 'scale'（預設）：佔圖片寬度的比例
+      wmW = Math.round(width * watermarkScale);
+      wmH = Math.round(wmW * wmMeta.height / wmMeta.width);
+    }
 
     // resize 浮水印
     const wmResized = await sharp(wmBuffer)
