@@ -68,6 +68,7 @@ db.exec(`
     webp_size      INTEGER NOT NULL DEFAULT 0,
     has_watermark  INTEGER NOT NULL DEFAULT 0,
     processing_ms  INTEGER NOT NULL DEFAULT 0,
+    action_count   INTEGER NOT NULL DEFAULT 1,
     created_at     TEXT    NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (api_key_id) REFERENCES api_keys(id)
   );
@@ -91,6 +92,11 @@ db.exec(`
   );
 `);
 
+// Migration: add action_count for existing DBs that predate the column
+try {
+  db.exec('ALTER TABLE usage_logs ADD COLUMN action_count INTEGER NOT NULL DEFAULT 1');
+} catch (_) { /* column already exists */ }
+
 // ─── 初始資料 ─────────────────────────────────────────────────────────────────
 
 const tierCount = db.prepare('SELECT COUNT(*) as c FROM tiers').get().c;
@@ -106,12 +112,12 @@ function checkQuota(clientId, monthlyLimit) {
   if (monthlyLimit === 0) return { allowed: true, used: 0, limit: 0 };
 
   const used = db.prepare(`
-    SELECT COUNT(*) as c
+    SELECT COALESCE(SUM(ul.action_count), 0) as total
     FROM usage_logs ul
     JOIN api_keys ak ON ul.api_key_id = ak.id
     WHERE ak.client_id = ?
       AND ul.created_at >= datetime('now', 'start of month')
-  `).get(clientId).c;
+  `).get(clientId).total;
 
   return { allowed: used < monthlyLimit, used, limit: monthlyLimit };
 }

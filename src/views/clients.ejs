@@ -1,5 +1,13 @@
 <%- include('partials/header') %>
 
+<% if (flashKey) { %>
+<div class="alert alert-success" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+  <span>✓ API Key 已重置，請複製後交給客戶（此後不再顯示明文）：</span>
+  <code id="flash-key" style="background:#d1fae5;padding:4px 10px;border-radius:4px;font-size:13px;word-break:break-all;"><%= flashKey %></code>
+  <button class="btn btn-sm btn-secondary" onclick="navigator.clipboard.writeText('<%= flashKey %>');this.textContent='✓ 已複製'">複製</button>
+</div>
+<% } %>
+
 <div class="table-wrap">
   <table>
     <thead>
@@ -8,7 +16,7 @@
         <th>Email</th>
         <th>方案</th>
         <th>本月用量</th>
-        <th>API Keys</th>
+        <th>API Key</th>
         <th>狀態</th>
         <th>操作</th>
       </tr>
@@ -37,23 +45,34 @@
             </select>
           </form>
         </td>
-        <td><%= client.monthly_usage.toLocaleString() %> 張</td>
-        <td><%= client.key_count %> 組</td>
+        <td><%= client.monthly_usage.toLocaleString() %> 次</td>
+        <td>
+          <% if (client.api_key) { %>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span class="key-display" data-key="<%= client.api_key %>"
+                    style="font-family:monospace;font-size:12px;letter-spacing:1px;">●●●●●●●●</span>
+              <button type="button" class="btn btn-sm btn-secondary key-toggle-btn"
+                      onclick="toggleKey(this)" style="padding:2px 8px;font-size:11px;">顯示</button>
+            </div>
+          <% } else { %>
+            <span style="color:#999;font-size:12px;">尚未設定</span>
+          <% } %>
+        </td>
         <td>
           <span class="badge <%= client.is_active ? 'badge-active' : 'badge-inactive' %>">
             <%= client.is_active ? '啟用' : '停用' %>
           </span>
         </td>
         <td>
-          <div style="display:flex;gap:6px;">
-            <form method="post" action="/admin/clients/<%= client.id %>/toggle">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <form method="post" action="/admin/clients/<%= client.id %>/toggle" style="margin:0;">
               <button class="btn btn-sm <%= client.is_active ? 'btn-secondary' : 'btn-primary' %>">
                 <%= client.is_active ? '停用' : '啟用' %>
               </button>
             </form>
-            <form method="post" action="/admin/clients/<%= client.id %>/key/create">
-              <input type="hidden" name="label" value="新 Key">
-              <button class="btn btn-sm btn-secondary">＋ Key</button>
+            <form method="post" action="/admin/clients/<%= client.id %>/key/reset" style="margin:0;"
+                  onsubmit="return confirm('重置後舊 Key 立即失效，客戶需重新綁定。確定？')">
+              <button class="btn btn-sm btn-danger">重置 Key</button>
             </form>
           </div>
         </td>
@@ -62,5 +81,18 @@
     </tbody>
   </table>
 </div>
+
+<script>
+function toggleKey(btn) {
+  var span = btn.previousElementSibling;
+  if (btn.textContent === '顯示') {
+    span.textContent = span.dataset.key;
+    btn.textContent = '隱藏';
+  } else {
+    span.textContent = '●●●●●●●●';
+    btn.textContent = '顯示';
+  }
+}
+</script>
 
 <%- include('partials/footer') %>

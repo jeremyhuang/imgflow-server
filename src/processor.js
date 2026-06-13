@@ -69,17 +69,21 @@ function calcPosition(imgW, imgH, wmW, wmH, pos, marginX, marginY) {
  */
 async function processImage(imageBuffer, options = {}) {
   const {
-    quality       = 82,
-    webpQuality   = 80,
-    outputWebp    = true,
-    watermarkUrl  = '',
-    watermarkPos  = 'br',
+    actions          = ['compress', 'watermark', 'webp'],
+    quality          = 82,
+    webpQuality      = 80,
+    watermarkUrl     = '',
+    watermarkPos     = 'br',
     watermarkOpacity = 0.7,
     watermarkScale   = 0.2,
     watermarkMarginX = 3,
     watermarkMarginY = 3,
     minWidthForWm    = 400,
   } = options;
+
+  const doCompress  = actions.includes('compress');
+  const doWatermark = actions.includes('watermark');
+  const doWebp      = actions.includes('webp');
 
   const inputSize = imageBuffer.length;
 
@@ -90,7 +94,7 @@ async function processImage(imageBuffer, options = {}) {
   let pipeline = sharp(imageBuffer);
 
   // ─── 加浮水印 ──────────────────────────────────────────────────────────────
-  if (watermarkUrl && width >= minWidthForWm) {
+  if (doWatermark && watermarkUrl && width >= minWidthForWm) {
     const wmBuffer = await fetchWatermark(watermarkUrl);
 
     // 計算浮水印寬度（依比例），維持長寬比
@@ -140,26 +144,25 @@ async function processImage(imageBuffer, options = {}) {
   }
 
   // ─── 壓縮輸出 ─────────────────────────────────────────────────────────────
+  // doCompress=false 時以接近無損品質輸出（確保浮水印仍可合成）
   let outputMime;
   let outputBuffer;
 
   if (format === 'png') {
     outputMime = 'image/png';
     outputBuffer = await pipeline
-      .png({ compressionLevel: 9, adaptiveFiltering: true })
+      .png({ compressionLevel: doCompress ? 9 : 0, adaptiveFiltering: doCompress })
       .toBuffer();
   } else {
-    // jpeg / webp / 其他 → 輸出 JPEG
     outputMime = 'image/jpeg';
     outputBuffer = await pipeline
-      .jpeg({ quality, mozjpeg: true })
+      .jpeg({ quality: doCompress ? quality : 100, mozjpeg: true })
       .toBuffer();
   }
 
   // ─── 輸出 WebP ─────────────────────────────────────────────────────────────
   let webpResult = null;
-  if (outputWebp) {
-    // 從壓縮後的圖再轉 WebP，維持浮水印
+  if (doWebp) {
     const webpBuffer = await sharp(outputBuffer)
       .webp({ quality: webpQuality })
       .toBuffer();

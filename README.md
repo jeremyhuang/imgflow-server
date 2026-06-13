@@ -6,7 +6,7 @@
 - 浮水印疊加（位置、縮放、透明度、邊距可設定）
 - 多租戶 API Key 管理
 - Google OAuth 2.0 用戶自助連結
-- 方案（Tier）系統：每月圖片張數配額，超限回 429
+- 方案（Tier）系統：每月操作次數配額（compress/watermark/webp 各計 1 次），超限回 429
 - 後台管理介面（客戶管理、方案管理、用量報表、管理員帳號）
 
 ## 快速開始
@@ -269,7 +269,7 @@ SQLite 資料庫初始化與 schema 管理。
 | `tiers` | 方案定義（id, name, monthly_limit, is_active） |
 | `client_accounts` | 客戶帳號（id, google_sub, email, name, tier_id, is_active） |
 | `api_keys` | API Key 清單（id, client_id, key, is_active, last_used_at） |
-| `usage_logs` | 每次 API 呼叫記錄（id, api_key_id, input_size, output_size, webp_size, processing_ms, created_at） |
+| `usage_logs` | 每次 API 呼叫記錄（id, api_key_id, input_size, output_size, webp_size, processing_ms, action_count, created_at） |
 | `oauth_states` | OAuth flow 暫存 state（state, redirect_uri, expires_at） |
 | `auth_tokens` | OAuth 完成後的一次性 token（token, api_key_id, expires_at） |
 | `settings` | 系統設定 key/value 表（session_secret、google_client_id、google_client_secret、google_callback_url） |
@@ -282,7 +282,7 @@ SQLite 資料庫初始化與 schema 管理。
 **匯出：**
 
 - `db` — better-sqlite3 實例（同步 API）
-- `checkQuota(clientId)` — 檢查本月用量是否超過方案上限
+- `checkQuota(clientId)` — 以 `SUM(action_count)` 計算本月操作次數是否超過方案上限
 - `getSetting(key)` — 讀取 settings 表
 - `setSetting(key, value)` — 寫入 settings 表
 
@@ -312,9 +312,9 @@ SQLite 資料庫初始化與 schema 管理。
 
 | 欄位 | 型別 | 說明 |
 |------|------|------|
+| `actions` | string[] | 本次執行操作，預設 `["compress","watermark","webp"]`；僅列出需要的即可 |
 | `quality` | int | JPEG 壓縮品質（50–100） |
 | `webpQuality` | int | WebP 品質 |
-| `outputWebp` | bool | 是否產生 WebP |
 | `watermarkUrl` | string | 浮水印圖片 URL |
 | `watermarkPos` | string | 位置代碼（tl/tc/tr/ml/mc/mr/bl/bc/br） |
 | `watermarkScale` | float | 比例（0–1，相對圖片寬度） |
@@ -323,7 +323,7 @@ SQLite 資料庫初始化與 schema 管理。
 | `watermarkMarginY` | float | 垂直邊距（% 圖高） |
 | `minWidthForWm` | int | 小於此寬度不加浮水印 |
 
-浮水印處理流程：下載 watermarkUrl 圖片 → 縮放至目標尺寸（sharp resize）→ 以 `composite()` 疊加於主圖指定位置。
+`actions` 不含 `compress` 時輸出品質設為 100（等效不壓縮）；不含 `watermark` 時跳過浮水印；不含 `webp` 時不產生 WebP 副本。浮水印處理流程：下載 watermarkUrl 圖片 → 縮放至目標尺寸（sharp resize）→ 以 `composite()` 疊加於主圖指定位置。
 
 ---
 
@@ -332,7 +332,7 @@ SQLite 資料庫初始化與 schema 管理。
 API 請求驗證 middleware。
 
 1. 從 `X-API-Key` header 取得金鑰
-2. 在 `api_keys` 表中比對（儲存的是 SHA-256 hash，不儲存明文）
+2. 在 `api_keys` 表中比對（明文儲存）
 3. 查詢對應 `client_accounts`，確認 `is_active = true`
 4. 呼叫 `db.checkQuota(clientId)`，超限回傳 `429 { error: '...' }`
 5. 更新 `api_keys.last_used_at`
@@ -371,11 +371,11 @@ API 請求驗證 middleware。
 
 流程：
 
-1. `apiAuth` middleware 驗證 API Key 與配額
+1. `apiAuth` middleware 驗證 API Key 與配額（以 SUM(action_count) 計）
 2. `multer` 接收 `multipart/form-data` 中的 `image` 欄位（memory storage）
-3. 解析 `options` 欄位（JSON string）
+3. 解析 `options` 欄位（JSON string），讀取 `actions` 陣列
 4. 呼叫 `processImage(req.file.buffer, options)`
-5. 在 `usage_logs` 插入一筆記錄（file_count=1，記錄 bytes）
+5. 成功後在 `usage_logs` 插入一筆記錄，`action_count = actions.length`
 6. 回傳 `{ inputSize, output, webp? }`
 
 ---
@@ -396,11 +396,10 @@ API 請求驗證 middleware。
 
 | 路由 | 說明 |
 |------|------|
-| `GET /` | 列出所有客戶，含本月用量（JOIN usage_logs）；渲染 `clients.ejs` |
+| `GET /` | 列出所有客戶，含本月操作次數（SUM action_count）；渲染 `clients.ejs` |
 | `POST /:id/tier` | 變更客戶方案（tier_id） |
 | `POST /:id/toggle` | 切換客戶 is_active 狀態 |
-| `POST /:id/key/create` | 產生新 API Key（32 bytes random hex），以 SHA-256 hash 存入 DB |
-| `POST /:clientId/key/:keyId/toggle` | 啟用 / 停用特定 API Key |
+| `POST /:id/key/reset` | 停用舊 Key，產生新 Key（32 bytes random hex 明文存入 DB），透過 session flash 顯示一次 |
 
 ---
 
@@ -464,7 +463,7 @@ API 請求驗證 middleware。
 
 客戶管理列表頁。
 
-表格欄位：客戶 Email、連結名稱、方案（下拉選單，選擇即 POST submit）、本月用量、帳號狀態、操作（啟用/停用、新增 API Key）。
+表格欄位：客戶名稱/頭像、Email、方案（下拉即存）、本月操作次數、API Key（預設遮罩，可切換顯示）、帳號狀態、操作（啟用/停用、重置 Key）。重置後新 Key 以 flash 顯示一次（含複製按鈕）。
 
 ---
 
@@ -472,7 +471,7 @@ API 請求驗證 middleware。
 
 方案管理頁。
 
-左側：方案列表（名稱、每月上限、狀態、操作）。右側：新增方案表單。編輯方案透過 `openEdit(id, name, limit)` 開啟 modal 覆蓋層。
+左側：方案列表（名稱、每月操作次數上限、狀態、操作）。右側：新增方案表單。編輯方案透過 `openEdit(id, name, limit)` 開啟 modal 覆蓋層。
 
 ---
 
@@ -488,9 +487,9 @@ API 請求驗證 middleware。
 
 用量報表頁。
 
-- 近 30 天每日處理張數長條圖（Chart.js）
-- 近 6 個月每月處理張數長條圖（Chart.js）
-- 本月前 10 大用量客戶表格（含處理張數與節省空間）
+- 近 30 天每日操作次數長條圖（Chart.js，以 SUM(action_count) 計）
+- 近 6 個月每月操作次數長條圖（Chart.js）
+- 本月前 10 大用量客戶表格（含操作次數與節省空間）
 
 `fmtBytes()` 以 EJS function 定義在模板內，供 server-side 渲染表格中的 bytes 格式化。
 
@@ -576,9 +575,9 @@ Content-Type: multipart/form-data
 
 ```json
 {
+  "actions": ["compress", "watermark", "webp"],
   "quality": 82,
   "webpQuality": 80,
-  "outputWebp": true,
   "watermarkUrl": "https://...",
   "watermarkPos": "br",
   "watermarkScale": 0.2,
@@ -609,13 +608,13 @@ Content-Type: multipart/form-data
 
 - `400` — 缺少圖片欄位
 - `401` — API Key 無效或停用
-- `429` — 本月配額超限（`{ "error": "本月用量已達 500 張上限" }`）
+- `429` — 本月配額超限（`{ "error": "本月用量已達 500 次上限" }`）
 - `500` — 伺服器內部錯誤
 
 ### `GET /health`
 
 ```json
-{ "status": "ok", "version": "0.1.4" }
+{ "status": "ok", "version": "0.1.5" }
 ```
 
 ---
@@ -654,6 +653,6 @@ redirect 回設定頁，顯示「已成功連結」
 | 分支 | 版號 |
 |------|------|
 | main | `0.0.1` |
-| develop | `0.1.4` |
+| develop | `0.1.5` |
 
 正式上線版本從 `1.0.0` 開始。

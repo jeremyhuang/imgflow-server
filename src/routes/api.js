@@ -25,16 +25,18 @@ router.post('/process', apiAuth, upload.single('image'), async (req, res) => {
   try {
     const result = await processImage(req.file.buffer, options);
 
+    const actions = Array.isArray(options.actions) ? options.actions : ['compress', 'watermark', 'webp'];
     db.prepare(`
-      INSERT INTO usage_logs (api_key_id, input_size, output_size, webp_size, has_watermark, processing_ms)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO usage_logs (api_key_id, input_size, output_size, webp_size, has_watermark, processing_ms, action_count)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(
       req.apiKeyId,
       result.inputSize,
       result.output.size,
       result.webp?.size ?? 0,
-      options.watermarkUrl ? 1 : 0,
-      Date.now() - startMs
+      (options.watermarkUrl && actions.includes('watermark')) ? 1 : 0,
+      Date.now() - startMs,
+      actions.length
     );
 
     return res.json({ success: true, ...result });

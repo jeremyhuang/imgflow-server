@@ -7,10 +7,10 @@ const router = express.Router();
 
 router.get('/', (req, res) => {
   const daily = db.prepare(`
-    SELECT date(created_at) as day,
-           COUNT(*)         as count,
-           SUM(input_size)  as total_input,
-           SUM(output_size) as total_output
+    SELECT date(created_at)                  as day,
+           COALESCE(SUM(action_count), 0)    as count,
+           SUM(input_size)                   as total_input,
+           SUM(output_size)                  as total_output
     FROM usage_logs
     WHERE created_at >= datetime('now', '-30 days')
     GROUP BY day
@@ -18,10 +18,10 @@ router.get('/', (req, res) => {
   `).all();
 
   const monthly = db.prepare(`
-    SELECT strftime('%Y-%m', created_at) as month,
-           COUNT(*)                      as count,
-           SUM(input_size)               as total_input,
-           SUM(output_size)              as total_output
+    SELECT strftime('%Y-%m', created_at)     as month,
+           COALESCE(SUM(action_count), 0)    as count,
+           SUM(input_size)                   as total_input,
+           SUM(output_size)                  as total_output
     FROM usage_logs
     WHERE created_at >= datetime('now', '-6 months')
     GROUP BY month
@@ -30,9 +30,9 @@ router.get('/', (req, res) => {
 
   const topClients = db.prepare(`
     SELECT ca.name, ca.email, t.name as tier,
-           COUNT(ul.id)       as count,
-           SUM(ul.input_size)  as total_input,
-           SUM(ul.output_size) as total_output
+           COALESCE(SUM(ul.action_count), 0) as count,
+           SUM(ul.input_size)                as total_input,
+           SUM(ul.output_size)               as total_output
     FROM usage_logs ul
     JOIN api_keys ak        ON ul.api_key_id = ak.id
     JOIN client_accounts ca ON ak.client_id  = ca.id

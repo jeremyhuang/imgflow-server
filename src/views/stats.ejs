@@ -13,11 +13,11 @@ function fmtBytes(b) {
 
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
   <div class="card">
-    <h3 style="margin:0 0 16px;font-size:14px;color:#666;">近 30 天每日處理張數</h3>
+    <h3 style="margin:0 0 16px;font-size:14px;color:#666;">近 30 天每日操作次數</h3>
     <canvas id="dailyChart" height="130"></canvas>
   </div>
   <div class="card">
-    <h3 style="margin:0 0 16px;font-size:14px;color:#666;">近 6 個月月度張數</h3>
+    <h3 style="margin:0 0 16px;font-size:14px;color:#666;">近 6 個月月度次數</h3>
     <canvas id="monthlyChart" height="130"></canvas>
   </div>
 </div>
@@ -25,7 +25,7 @@ function fmtBytes(b) {
 <div class="table-wrap">
   <table>
     <thead>
-      <tr><th>客戶</th><th>Email</th><th>方案</th><th>本月張數</th><th>原始大小</th><th>壓縮後</th></tr>
+      <tr><th>客戶</th><th>Email</th><th>方案</th><th>本月次數</th><th>原始大小</th><th>壓縮後</th></tr>
     </thead>
     <tbody>
     <% if (!topClients.length) { %>
@@ -53,7 +53,7 @@ new Chart(document.getElementById('dailyChart'), {
   type: 'bar',
   data: {
     labels:   daily.map(d => d.day),
-    datasets: [{ label: '張數', data: daily.map(d => d.count), backgroundColor: '#4c7df4', borderRadius: 4 }],
+    datasets: [{ label: '次數', data: daily.map(d => d.count), backgroundColor: '#4c7df4', borderRadius: 4 }],
   },
   options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } },
 });
@@ -62,7 +62,7 @@ new Chart(document.getElementById('monthlyChart'), {
   type: 'bar',
   data: {
     labels:   monthly.map(d => d.month),
-    datasets: [{ label: '張數', data: monthly.map(d => d.count), backgroundColor: '#00b894', borderRadius: 4 }],
+    datasets: [{ label: '次數', data: monthly.map(d => d.count), backgroundColor: '#00b894', borderRadius: 4 }],
   },
   options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } },
 });
