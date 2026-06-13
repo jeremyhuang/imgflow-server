@@ -16,6 +16,8 @@ const adminRouter = require('./routes/admin/index');
 const app  = express();
 const port = process.env.PORT || 3000;
 
+app.set('trust proxy', 1); // Synology Reverse Proxy 後面必須加，否則 secure cookie 失效
+
 // ─── View engine ──────────────────────────────────────────────────────────────
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
