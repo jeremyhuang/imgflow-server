@@ -1,6 +1,6 @@
 {
   "name": "imgflow-server",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "Image processing microservice: watermark, compress, WebP",
   "main": "src/index.js",
   "scripts": {
