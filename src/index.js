@@ -36,7 +36,7 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
-    secure:   process.env.NODE_ENV === 'production',
+    secure:   false, // HTTPS 由 Synology Reverse Proxy 處理，容器內部走 HTTP
     maxAge:   24 * 60 * 60 * 1000, // 1 天
   },
 }));
