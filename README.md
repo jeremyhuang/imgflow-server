@@ -322,8 +322,10 @@ SQLite 資料庫初始化與 schema 管理。
 | `watermarkMarginX` | float | 水平邊距（% 圖寬） |
 | `watermarkMarginY` | float | 垂直邊距（% 圖高） |
 | `minWidthForWm` | int | 小於此寬度不加浮水印 |
+| `resizeLandWidth` | int | 橫向最大寬度（px，0=不限制） |
+| `resizePortHeight` | int | 直向最大高度（px，0=不限制） |
 
-`actions` 不含 `compress` 時輸出品質設為 100（等效不壓縮）；不含 `watermark` 時跳過浮水印；不含 `webp` 時不產生 WebP 副本。浮水印處理流程：下載 watermarkUrl 圖片 → 縮放至目標尺寸（sharp resize）→ 以 `composite()` 疊加於主圖指定位置。
+`actions` 支援 `resize`、`compress`、`watermark`、`webp` 四個獨立操作，可任意組合。`resize` 在浮水印之前執行，縮圖後的尺寸作為浮水印比例計算基準；`compress` 不含時輸出品質設為 100；`watermark` 不含時跳過浮水印；`webp` 不含時不產生 WebP 副本。
 
 ---
 
