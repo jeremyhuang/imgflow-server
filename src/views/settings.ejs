@@ -30,15 +30,24 @@
     </div>
 
     <div class="form-group" style="margin-top:16px;">
-      <label>Callback URL</label>
-      <input type="url" name="google_callback_url"
-             value="<%= settings.google_callback_url %>"
-             placeholder="https://imgflow.example.com/auth/google/callback"
+      <label>服務網域</label>
+      <input type="url" name="google_domain" id="google-domain"
+             value="<%= domain %>"
+             placeholder="https://imgflow.example.com"
              class="form-control">
       <p style="font-size:12px;color:#888;margin-top:4px;">
-        需與 Google Cloud Console 中設定的「已授權的重新導向 URI」完全一致。
+        Callback URL（請複製此值填入 Google Cloud Console）：<br>
+        <code id="callback-preview" style="user-select:all;"><%= domain ? domain.replace(/\/$/, '') + '/auth/google/callback' : '（請先填入服務網域）' %></code>
       </p>
     </div>
+
+    <script>
+      document.getElementById('google-domain').addEventListener('input', function () {
+        var v = this.value.replace(/\/$/, '');
+        document.getElementById('callback-preview').textContent =
+          v ? v + '/auth/google/callback' : '（請先填入服務網域）';
+      });
+    </script>
 
     <div style="margin-top:24px;">
       <button type="submit" class="btn btn-primary">儲存設定</button>

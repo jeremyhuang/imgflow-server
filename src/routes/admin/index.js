@@ -3,10 +3,11 @@
 const express   = require('express');
 const adminAuth = require('../../middleware/adminAuth');
 const { db }    = require('../../db');
+const { version } = require('../../../package.json');
 
 const router = express.Router();
 
-// 所有 admin 路由都需要登入，並掛載 res.locals.admin
+// 所有 admin 路由都需要登入，並掛載 res.locals.admin / version
 router.use((req, res, next) => {
   adminAuth(req, res, () => {
     res.locals.admin = {
@@ -14,6 +15,7 @@ router.use((req, res, next) => {
       username: req.session.adminUsername,
       role:     req.session.adminRole,
     };
+    res.locals.version = version;
     next();
   });
 });

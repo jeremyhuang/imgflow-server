@@ -83,7 +83,7 @@ docker compose up -d
 1. 在 Container Manager → 專案 → `imgflow-server`，確認狀態為 **執行中（Running）**
 2. 瀏覽器開啟 `http://NAS的IP:3000/health`，應看到：
    ```json
-   { "status": "ok", "version": "0.1.3" }
+   { "status": "ok", "version": "0.1.4" }
    ```
 3. 開啟 `http://NAS的IP:3000/admin`，首次進入自動跳 `/admin/setup`，建立管理員帳號後登入
 
@@ -103,7 +103,7 @@ Google OAuth 需要 HTTPS 的 callback URL，建議透過 DSM 的反向代理設
    - **主機名稱（目的地）**：`localhost`
    - **連接埠（目的地）**：3000
 3. 儲存後，外部即可透過 `https://imgflow.你的網域.com` 訪問服務
-4. 登入後台 → **系統設定**，將 Callback URL 填入 `https://imgflow.你的網域.com/auth/google/callback`（需與 Google Cloud Console 設定一致，無需重啟容器）
+4. 登入後台 → **系統設定**，在「服務網域」欄位填入 `https://imgflow.你的網域.com`，系統自動組合 Callback URL 為 `https://imgflow.你的網域.com/auth/google/callback`，複製此值填入 Google Cloud Console（需完全一致，無需重啟容器）
 
 ---
 
@@ -220,7 +220,7 @@ nas-image-service/
 
 ### `package.json`
 
-版本：`0.1.3`，主入口：`src/index.js`。
+版本：`0.1.4`，主入口：`src/index.js`。
 
 **相依套件：**
 
@@ -384,6 +384,7 @@ API 請求驗證 middleware。
 
 掛載路徑：`/admin`，套用 `adminAuth` middleware 保護所有子路由。
 
+- middleware 統一掛載 `res.locals.admin`（登入者 id/username/role）與 `res.locals.version`（package.json 版號）供所有 view 使用
 - `GET /` — 儀表板：查詢活躍客戶數、API Key 數、本月處理張數、今日處理張數，渲染 `dashboard.ejs`
 - 掛載子路由：`/clients`、`/tiers`、`/users`、`/stats`、`/settings`
 
@@ -501,8 +502,8 @@ API 請求驗證 middleware。
 
 | 路由 | 說明 |
 |------|------|
-| `GET /` | 顯示系統設定頁，從 `settings` 表讀取 Google OAuth 三個參數 |
-| `POST /` | 儲存 Google OAuth 設定（client_id、client_secret、callback_url） |
+| `GET /` | 從 `settings` 表讀取 Google OAuth 設定，並從 `google_callback_url` 反推 `domain`，渲染 `settings.ejs` |
+| `POST /` | 儲存 client_id、client_secret；依 `google_domain` 欄位自動組合 `google_callback_url`（domain + `/auth/google/callback`）儲存 |
 
 ---
 
@@ -516,7 +517,7 @@ API 請求驗證 middleware。
 
 ### `src/views/settings.ejs`
 
-系統設定頁。表單欄位：Google Client ID、Google Client Secret（password 輸入）、Google Callback URL，儲存後顯示成功通知。
+系統設定頁。表單欄位：Google Client ID、Google Client Secret（password 輸入）、服務網域（填入後即時顯示組合出的 Callback URL 供複製）。儲存後顯示成功通知。
 
 ---
 
@@ -524,7 +525,7 @@ API 請求驗證 middleware。
 
 所有後台頁面共用的 HTML 開頭與側邊欄。
 
-Sidebar 連結：儀表板、客戶管理、方案管理、用量報表、管理員帳號（superadmin 限定）、系統設定（superadmin 限定）。目前頁面連結加 `.active` class。右上角顯示登入帳號名稱與登出按鈕（POST `/admin/logout`）。
+Sidebar 連結：儀表板、客戶管理、方案管理、用量報表、管理員帳號（superadmin 限定）、系統設定（superadmin 限定）。目前頁面連結加 `.active` class。底部顯示登入帳號名稱、角色、登出按鈕與服務版本號（`v<%= version %>`）。
 
 ---
 
@@ -614,7 +615,7 @@ Content-Type: multipart/form-data
 ### `GET /health`
 
 ```json
-{ "status": "ok", "version": "0.1.3" }
+{ "status": "ok", "version": "0.1.4" }
 ```
 
 ---
@@ -653,6 +654,6 @@ redirect 回設定頁，顯示「已成功連結」
 | 分支 | 版號 |
 |------|------|
 | main | `0.0.1` |
-| develop | `0.1.3` |
+| develop | `0.1.4` |
 
 正式上線版本從 `1.0.0` 開始。
