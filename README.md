@@ -83,7 +83,7 @@ docker compose up -d
 1. 在 Container Manager → 專案 → `imgflow-server`，確認狀態為 **執行中（Running）**
 2. 瀏覽器開啟 `http://NAS的IP:3000/health`，應看到：
    ```json
-   { "status": "ok", "version": "0.1.7" }
+   { "status": "ok", "version": "0.1.8" }
    ```
 3. 開啟 `http://NAS的IP:3000/admin`，首次進入自動跳 `/admin/setup`，建立管理員帳號後登入
 
@@ -220,7 +220,7 @@ nas-image-service/
 
 ### `package.json`
 
-版本：`0.1.7`，主入口：`src/index.js`。
+版本：`0.1.8`，主入口：`src/index.js`。
 
 **相依套件：**
 
@@ -324,10 +324,8 @@ SQLite 資料庫初始化與 schema 管理。
 | `watermarkMarginX` | float | 水平邊距（% 圖寬） |
 | `watermarkMarginY` | float | 垂直邊距（% 圖高） |
 | `minWidthForWm` | int | 小於此寬度不加浮水印 |
-| `resizeLandWidth` | int | 橫向最大寬度（px，0=不限制） |
-| `resizePortHeight` | int | 直向最大高度（px，0=不限制） |
 
-`actions` 支援 `resize`、`compress`、`watermark`、`webp` 四個獨立操作，可任意組合。`resize` 在浮水印之前執行，縮圖後的尺寸作為浮水印比例計算基準；`compress` 不含時輸出品質設為 100；`watermark` 不含時跳過浮水印；`webp` 不含時不產生 WebP 副本。
+`actions` 支援 `compress`、`watermark`、`webp` 三個獨立操作，可任意組合。`compress` 不含時輸出品質設為 100；`watermark` 不含時跳過浮水印；`webp` 不含時不產生 WebP 副本。
 
 ---
 
@@ -579,11 +577,9 @@ Content-Type: multipart/form-data
 
 ```json
 {
-  "actions": ["resize", "compress", "watermark", "webp"],
+  "actions": ["compress", "watermark", "webp"],
   "quality": 82,
   "webpQuality": 80,
-  "resizeLandWidth": 1920,
-  "resizePortHeight": 2560,
   "watermarkUrl": "https://...",
   "watermarkPos": "br",
   "watermarkSizeMode": "scale",
@@ -622,7 +618,7 @@ Content-Type: multipart/form-data
 ### `GET /health`
 
 ```json
-{ "status": "ok", "version": "0.1.7" }
+{ "status": "ok", "version": "0.1.8" }
 ```
 
 ---
@@ -661,6 +657,6 @@ redirect 回設定頁，顯示「已成功連結」
 | 分支 | 版號 |
 |------|------|
 | main | `0.0.1` |
-| develop | `0.1.7` |
+| develop | `0.1.8` |
 
 正式上線版本從 `1.0.0` 開始。

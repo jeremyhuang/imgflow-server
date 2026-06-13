@@ -54,11 +54,9 @@ function calcPosition(imgW, imgH, wmW, wmH, pos, marginX, marginY) {
 /**
  * @param {Buffer} imageBuffer  原始圖片 binary
  * @param {Object} options
- *   actions          {string[]} 要執行的操作：'resize'|'compress'|'watermark'|'webp'
+ *   actions          {string[]} 要執行的操作：'compress'|'watermark'|'webp'
  *   quality          {number}  JPEG 品質 1–100，預設 82
  *   webpQuality      {number}  WebP 品質 1–100，預設 80
- *   resizeLandWidth  {number}  橫向最大寬度（px，0=不限制），預設 0
- *   resizePortHeight {number}  直向最大高度（px，0=不限制），預設 0
  *   watermarkUrl     {string}  浮水印圖片 URL（空字串代表不加）
  *   watermarkPos     {string}  位置，預設 'br'
  *   watermarkOpacity {number}  透明度 0–1，預設 0.7
@@ -74,8 +72,6 @@ async function processImage(imageBuffer, options = {}) {
     actions          = ['compress', 'watermark', 'webp'],
     quality          = 82,
     webpQuality      = 80,
-    resizeLandWidth  = 0,
-    resizePortHeight = 0,
     watermarkUrl         = '',
     watermarkPos         = 'br',
     watermarkSizeMode    = 'scale',  // 'scale' | 'original' | 'custom'
@@ -87,7 +83,6 @@ async function processImage(imageBuffer, options = {}) {
     minWidthForWm        = 400,
   } = options;
 
-  const doResize    = actions.includes('resize');
   const doCompress  = actions.includes('compress');
   const doWatermark = actions.includes('watermark');
   const doWebp      = actions.includes('webp');
@@ -100,20 +95,6 @@ async function processImage(imageBuffer, options = {}) {
   let { width, height } = meta;
 
   let pipeline = sharp(imageBuffer);
-
-  // ─── 縮圖（在浮水印之前執行，讓浮水印比例基於縮圖後的尺寸）────────────────
-  if (doResize) {
-    const isLandscape = width >= height;
-    if (isLandscape && resizeLandWidth > 0 && width > resizeLandWidth) {
-      height   = Math.round(height * resizeLandWidth / width);
-      width    = resizeLandWidth;
-      pipeline = pipeline.resize(resizeLandWidth, null, { withoutEnlargement: true });
-    } else if (!isLandscape && resizePortHeight > 0 && height > resizePortHeight) {
-      width    = Math.round(width * resizePortHeight / height);
-      height   = resizePortHeight;
-      pipeline = pipeline.resize(null, resizePortHeight, { withoutEnlargement: true });
-    }
-  }
 
   // ─── 加浮水印 ──────────────────────────────────────────────────────────────
   if (doWatermark && watermarkUrl && width >= minWidthForWm) {
