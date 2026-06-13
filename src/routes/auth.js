@@ -4,7 +4,7 @@ const express = require('express');
 const crypto  = require('crypto');
 const fetch   = require('node-fetch');
 const bcrypt  = require('bcryptjs');
-const { db }  = require('../db');
+const { db, getSetting } = require('../db');
 
 const router = express.Router();
 
@@ -14,6 +14,10 @@ router.get('/auth/google', (req, res) => {
   const { redirect_uri } = req.query;
   if (!redirect_uri) return res.status(400).send('Missing redirect_uri');
 
+  const clientId   = getSetting('google_client_id');
+  const callbackUrl = getSetting('google_callback_url');
+  if (!clientId || !callbackUrl) return res.status(503).send('Google OAuth 尚未設定，請聯繫管理員');
+
   const state      = crypto.randomBytes(16).toString('hex');
   const expiresAt  = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
@@ -21,8 +25,8 @@ router.get('/auth/google', (req, res) => {
   db.prepare("DELETE FROM oauth_states WHERE expires_at < datetime('now')").run();
 
   const params = new URLSearchParams({
-    client_id:     process.env.GOOGLE_CLIENT_ID,
-    redirect_uri:  process.env.GOOGLE_CALLBACK_URL,
+    client_id:     clientId,
+    redirect_uri:  callbackUrl,
     response_type: 'code',
     scope:         'openid email profile',
     state,
@@ -50,9 +54,9 @@ router.get('/auth/google/callback', async (req, res) => {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body:    new URLSearchParams({
         code,
-        client_id:     process.env.GOOGLE_CLIENT_ID,
-        client_secret: process.env.GOOGLE_CLIENT_SECRET,
-        redirect_uri:  process.env.GOOGLE_CALLBACK_URL,
+        client_id:     getSetting('google_client_id'),
+        client_secret: getSetting('google_client_secret'),
+        redirect_uri:  getSetting('google_callback_url'),
         grant_type:    'authorization_code',
       }),
     });

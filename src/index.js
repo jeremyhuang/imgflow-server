@@ -1,17 +1,15 @@
 'use strict';
 
-require('dotenv').config();
-
 const express = require('express');
 const session = require('express-session');
 const path    = require('path');
 
-require('./db'); // 初始化資料庫與種子資料
+const { getSetting } = require('./db'); // 初始化資料庫（含 session secret 自動產生）
 
 const { version } = require('../package.json');
-const authRouter  = require('./routes/auth');
-const apiRouter   = require('./routes/api');
-const adminRouter = require('./routes/admin/index');
+const authRouter   = require('./routes/auth');
+const apiRouter    = require('./routes/api');
+const adminRouter  = require('./routes/admin/index');
 
 const app  = express();
 const port = process.env.PORT || 3000;
@@ -31,7 +29,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // ─── Session ──────────────────────────────────────────────────────────────────
 app.use(session({
-  secret:            process.env.SESSION_SECRET || 'dev-secret-change-me',
+  secret:            getSetting('session_secret'),
   resave:            false,
   saveUninitialized: false,
   cookie: {

@@ -1,6 +1,6 @@
 {
   "name": "imgflow-server",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "description": "Image processing microservice: watermark, compress, WebP, multi-tenant admin",
   "main": "src/index.js",
   "scripts": {
@@ -10,7 +10,6 @@
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^9.4.3",
-    "dotenv": "^16.4.5",
     "ejs": "^3.1.10",
     "express": "^4.19.2",
     "express-session": "^1.18.0",

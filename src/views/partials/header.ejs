@@ -16,7 +16,8 @@
       <a href="/admin/tiers"    class="<%= page === 'tiers'     ? 'active' : '' %>">方案管理</a>
       <a href="/admin/stats"    class="<%= page === 'stats'     ? 'active' : '' %>">用量報表</a>
       <% if (admin.role === 'superadmin') { %>
-      <a href="/admin/users"    class="<%= page === 'users'     ? 'active' : '' %>">管理員帳號</a>
+      <a href="/admin/users"    class="<%= page === 'users'    ? 'active' : '' %>">管理員帳號</a>
+      <a href="/admin/settings" class="<%= page === 'settings' ? 'active' : '' %>">系統設定</a>
       <% } %>
     </nav>
     <div class="sidebar-footer">

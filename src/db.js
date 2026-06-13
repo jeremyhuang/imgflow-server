@@ -1,8 +1,9 @@
 'use strict';
 
 const Database = require('better-sqlite3');
-const path = require('path');
-const fs = require('fs');
+const crypto   = require('crypto');
+const path     = require('path');
+const fs       = require('fs');
 
 const dataDir = path.join(__dirname, '..', 'data');
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
@@ -71,6 +72,11 @@ db.exec(`
     FOREIGN KEY (api_key_id) REFERENCES api_keys(id)
   );
 
+  CREATE TABLE IF NOT EXISTS settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL DEFAULT ''
+  );
+
   CREATE TABLE IF NOT EXISTS oauth_states (
     state        TEXT PRIMARY KEY,
     redirect_uri TEXT NOT NULL,
@@ -110,4 +116,19 @@ function checkQuota(clientId, monthlyLimit) {
   return { allowed: used < monthlyLimit, used, limit: monthlyLimit };
 }
 
-module.exports = { db, checkQuota };
+// session_secret 首次啟動時自動產生，之後固定不變
+if (!db.prepare("SELECT value FROM settings WHERE key = 'session_secret'").get()) {
+  const secret = crypto.randomBytes(32).toString('hex');
+  db.prepare("INSERT INTO settings (key, value) VALUES ('session_secret', ?)").run(secret);
+  console.log('[db] 已自動產生 session secret');
+}
+
+function getSetting(key) {
+  return db.prepare('SELECT value FROM settings WHERE key = ?').get(key)?.value ?? '';
+}
+
+function setSetting(key, value) {
+  db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, value);
+}
+
+module.exports = { db, checkQuota, getSetting, setSetting };

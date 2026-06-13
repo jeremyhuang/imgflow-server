@@ -32,9 +32,10 @@ router.get('/', (req, res) => {
   });
 });
 
-router.use('/clients', require('./clients'));
-router.use('/tiers',   require('./tiers'));
-router.use('/users',   require('./users'));
-router.use('/stats',   require('./stats'));
+router.use('/clients',  require('./clients'));
+router.use('/tiers',    require('./tiers'));
+router.use('/users',    require('./users'));
+router.use('/stats',    require('./stats'));
+router.use('/settings', require('./settings'));
 
 module.exports = router;
