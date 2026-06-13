@@ -1,0 +1,184 @@
+'use strict';
+
+const sharp = require('sharp');
+const fetch = require('node-fetch');
+
+// ─── 浮水印 URL cache ──────────────────────────────────────────────────────────
+// key: url → { buffer: Buffer, fetchedAt: number }
+const wmCache = new Map();
+const WM_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 小時
+
+async function fetchWatermark(url) {
+  const cached = wmCache.get(url);
+  if (cached && Date.now() - cached.fetchedAt < WM_CACHE_TTL_MS) {
+    return cached.buffer;
+  }
+
+  const res = await fetch(url, { timeout: 10000 });
+  if (!res.ok) {
+    throw new Error(`無法取得浮水印圖片：HTTP ${res.status}`);
+  }
+
+  const buffer = await res.buffer();
+  wmCache.set(url, { buffer, fetchedAt: Date.now() });
+  return buffer;
+}
+
+// ─── 位置計算 ─────────────────────────────────────────────────────────────────
+// pos: 'tl' | 'tc' | 'tr' | 'ml' | 'mc' | 'mr' | 'bl' | 'bc' | 'br'
+function calcPosition(imgW, imgH, wmW, wmH, pos, marginX, marginY) {
+  const mx = Math.round(imgW * marginX / 100);
+  const my = Math.round(imgH * marginY / 100);
+
+  const hKey = pos[1]; // l | c | r
+  const vKey = pos[0]; // t | m | b
+
+  let left, top;
+
+  switch (hKey) {
+    case 'l': left = mx; break;
+    case 'c': left = Math.round((imgW - wmW) / 2); break;
+    case 'r': left = imgW - wmW - mx; break;
+  }
+
+  switch (vKey) {
+    case 't': top = my; break;
+    case 'm': top = Math.round((imgH - wmH) / 2); break;
+    case 'b': top = imgH - wmH - my; break;
+  }
+
+  return { left, top };
+}
+
+// ─── 主處理函式 ───────────────────────────────────────────────────────────────
+/**
+ * @param {Buffer} imageBuffer  原始圖片 binary
+ * @param {Object} options
+ *   quality          {number}  JPEG 品質 1–100，預設 82
+ *   webpQuality      {number}  WebP 品質 1–100，預設 80
+ *   outputWebp       {boolean} 是否輸出 WebP，預設 true
+ *   watermarkUrl     {string}  浮水印圖片 URL（空字串代表不加）
+ *   watermarkPos     {string}  位置，預設 'br'
+ *   watermarkOpacity {number}  透明度 0–1，預設 0.7
+ *   watermarkScale   {number}  佔圖片寬度的比例 0–1，預設 0.2
+ *   watermarkMarginX {number}  水平邊距 %，預設 3
+ *   watermarkMarginY {number}  垂直邊距 %，預設 3
+ *   minWidthForWm    {number}  小於此寬度不加浮水印（px），預設 400
+ *
+ * @returns {{ inputSize, output: { data, size, mime }, webp: { data, size } | null }}
+ */
+async function processImage(imageBuffer, options = {}) {
+  const {
+    quality       = 82,
+    webpQuality   = 80,
+    outputWebp    = true,
+    watermarkUrl  = '',
+    watermarkPos  = 'br',
+    watermarkOpacity = 0.7,
+    watermarkScale   = 0.2,
+    watermarkMarginX = 3,
+    watermarkMarginY = 3,
+    minWidthForWm    = 400,
+  } = options;
+
+  const inputSize = imageBuffer.length;
+
+  // 讀取原圖 metadata
+  const meta = await sharp(imageBuffer).metadata();
+  const { width, height, format } = meta;
+
+  let pipeline = sharp(imageBuffer);
+
+  // ─── 加浮水印 ──────────────────────────────────────────────────────────────
+  if (watermarkUrl && width >= minWidthForWm) {
+    const wmBuffer = await fetchWatermark(watermarkUrl);
+
+    // 計算浮水印寬度（依比例），維持長寬比
+    const wmW = Math.round(width * watermarkScale);
+    const wmMeta = await sharp(wmBuffer).metadata();
+    const wmH = Math.round(wmW * wmMeta.height / wmMeta.width);
+
+    // resize 浮水印
+    const wmResized = await sharp(wmBuffer)
+      .resize(wmW, wmH, { fit: 'fill' })
+      .png() // 轉 PNG 確保有 alpha channel
+      .toBuffer();
+
+    // 套用透明度（用 linear 調整 alpha channel）
+    const opacity = Math.max(0, Math.min(1, watermarkOpacity));
+    const wmWithOpacity = await sharp(wmResized)
+      .ensureAlpha()
+      .linear(1, 0) // 保持 RGB
+      .composite([{
+        input: await sharp(wmResized)
+          .extractChannel('alpha')
+          .linear(opacity, 0) // 縮放 alpha channel
+          .toBuffer(),
+        raw: { width: wmW, height: wmH, channels: 1 },
+        blend: 'dest-in',
+      }])
+      .toBuffer()
+      .catch(async () => {
+        // fallback：直接用 sharp modulate 調整不透明度
+        return sharp(wmResized)
+          .ensureAlpha()
+          .toBuffer();
+      });
+
+    const { left, top } = calcPosition(
+      width, height, wmW, wmH,
+      watermarkPos, watermarkMarginX, watermarkMarginY
+    );
+
+    // 合成
+    pipeline = pipeline.composite([{
+      input: wmWithOpacity,
+      left,
+      top,
+      blend: 'over',
+    }]);
+  }
+
+  // ─── 壓縮輸出 ─────────────────────────────────────────────────────────────
+  let outputMime;
+  let outputBuffer;
+
+  if (format === 'png') {
+    outputMime = 'image/png';
+    outputBuffer = await pipeline
+      .png({ compressionLevel: 9, adaptiveFiltering: true })
+      .toBuffer();
+  } else {
+    // jpeg / webp / 其他 → 輸出 JPEG
+    outputMime = 'image/jpeg';
+    outputBuffer = await pipeline
+      .jpeg({ quality, mozjpeg: true })
+      .toBuffer();
+  }
+
+  // ─── 輸出 WebP ─────────────────────────────────────────────────────────────
+  let webpResult = null;
+  if (outputWebp) {
+    // 從壓縮後的圖再轉 WebP，維持浮水印
+    const webpBuffer = await sharp(outputBuffer)
+      .webp({ quality: webpQuality })
+      .toBuffer();
+
+    webpResult = {
+      data: webpBuffer.toString('base64'),
+      size: webpBuffer.length,
+    };
+  }
+
+  return {
+    inputSize,
+    output: {
+      data: outputBuffer.toString('base64'),
+      size: outputBuffer.length,
+      mime: outputMime,
+    },
+    webp: webpResult,
+  };
+}
+
+module.exports = { processImage };

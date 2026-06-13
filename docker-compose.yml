@@ -1,0 +1,17 @@
+services:
+  image-service:
+    build: .
+    container_name: imgflow-server
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    # 限制資源，避免壓圖時把 NAS 打爆
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 1G
