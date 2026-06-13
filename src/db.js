@@ -1,7 +1,6 @@
 'use strict';
 
 const Database = require('better-sqlite3');
-const bcrypt = require('bcryptjs');
 const path = require('path');
 const fs = require('fs');
 
@@ -94,13 +93,6 @@ if (tierCount === 0) {
   console.log('[db] 已建立預設試用方案');
 }
 
-const adminCount = db.prepare('SELECT COUNT(*) as c FROM admin_users').get().c;
-if (adminCount === 0 && process.env.ADMIN_USERNAME && process.env.ADMIN_PASSWORD) {
-  const hash = bcrypt.hashSync(process.env.ADMIN_PASSWORD, 10);
-  db.prepare(`INSERT INTO admin_users (username, password_hash, role) VALUES (?, ?, 'superadmin')`)
-    .run(process.env.ADMIN_USERNAME, hash);
-  console.log('[db] 已建立初始超級管理員:', process.env.ADMIN_USERNAME);
-}
 
 // ─── 工具函式 ─────────────────────────────────────────────────────────────────
 

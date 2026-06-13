@@ -126,10 +126,36 @@ router.get('/auth/exchange', (req, res) => {
   res.json({ success: true, api_key: record.api_key, email: record.email, name: record.name });
 });
 
+// ─── 首次設定（無任何管理員時才開放）────────────────────────────────────────
+
+router.get('/admin/setup', (req, res) => {
+  const count = db.prepare('SELECT COUNT(*) as c FROM admin_users').get().c;
+  if (count > 0) return res.redirect('/admin/login');
+  res.render('setup', { error: null });
+});
+
+router.post('/admin/setup', (req, res) => {
+  const count = db.prepare('SELECT COUNT(*) as c FROM admin_users').get().c;
+  if (count > 0) return res.redirect('/admin/login');
+
+  const { username, password, confirm } = req.body;
+  if (!username || !password) return res.render('setup', { error: '請填寫帳號與密碼' });
+  if (password !== confirm)   return res.render('setup', { error: '兩次密碼不一致' });
+  if (password.length < 8)   return res.render('setup', { error: '密碼至少 8 個字元' });
+
+  const hash = bcrypt.hashSync(password, 10);
+  db.prepare("INSERT INTO admin_users (username, password_hash, role) VALUES (?, ?, 'superadmin')").run(username, hash);
+  console.log('[setup] 已建立初始超級管理員:', username);
+
+  res.redirect('/admin/login');
+});
+
 // ─── 管理員登入 ───────────────────────────────────────────────────────────────
 
 router.get('/admin/login', (req, res) => {
   if (req.session.adminId) return res.redirect('/admin');
+  const count = db.prepare('SELECT COUNT(*) as c FROM admin_users').get().c;
+  if (count === 0) return res.redirect('/admin/setup');
   res.render('login', { error: null });
 });
 
