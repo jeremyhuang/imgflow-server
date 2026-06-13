@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> — ImgFlow 管理後台</title>
+  <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo">ImgFlow</div>
+    <nav>
+      <a href="/admin"          class="<%= page === 'dashboard' ? 'active' : '' %>">總覽</a>
+      <a href="/admin/clients"  class="<%= page === 'clients'   ? 'active' : '' %>">客戶管理</a>
+      <a href="/admin/tiers"    class="<%= page === 'tiers'     ? 'active' : '' %>">方案管理</a>
+      <a href="/admin/stats"    class="<%= page === 'stats'     ? 'active' : '' %>">用量報表</a>
+      <% if (admin.role === 'superadmin') { %>
+      <a href="/admin/users"    class="<%= page === 'users'     ? 'active' : '' %>">管理員帳號</a>
+      <% } %>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="username"><%= admin.username %></div>
+      <div class="role"><%= admin.role === 'superadmin' ? '超級管理員' : '管理員' %></div>
+      <form action="/admin/logout" method="post">
+        <button type="submit" class="btn-logout">登出</button>
+      </form>
+    </div>
+  </aside>
+  <main class="main">
+    <div class="page-header"><h1><%= title %></h1></div>

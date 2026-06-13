@@ -3,56 +3,59 @@
 require('dotenv').config();
 
 const express = require('express');
-const multer  = require('multer');
-const auth    = require('./auth');
-const { processImage } = require('./processor');
+const session = require('express-session');
+const path    = require('path');
+
+require('./db'); // 初始化資料庫與種子資料
+
 const { version } = require('../package.json');
+const authRouter  = require('./routes/auth');
+const apiRouter   = require('./routes/api');
+const adminRouter = require('./routes/admin/index');
 
 const app  = express();
 const port = process.env.PORT || 3000;
 
-// multer：圖片存記憶體，限 50 MB
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 50 * 1024 * 1024 },
-});
+// ─── View engine ──────────────────────────────────────────────────────────────
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
 
-// ─── 健康檢查 ─────────────────────────────────────────────────────────────────
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', version });
-});
+// ─── Static files ─────────────────────────────────────────────────────────────
+app.use('/admin', express.static(path.join(__dirname, 'public')));
 
-// ─── 圖片處理 ─────────────────────────────────────────────────────────────────
-app.post('/api/process', auth, upload.single('image'), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ success: false, error: '缺少 image 欄位' });
-  }
+// ─── Body parsing ─────────────────────────────────────────────────────────────
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-  // 解析 options（JSON 字串）
-  let options = {};
-  if (req.body.options) {
-    try {
-      options = JSON.parse(req.body.options);
-    } catch {
-      return res.status(400).json({ success: false, error: 'options 格式錯誤，需為 JSON 字串' });
-    }
-  }
+// ─── Session ──────────────────────────────────────────────────────────────────
+app.use(session({
+  secret:            process.env.SESSION_SECRET || 'dev-secret-change-me',
+  resave:            false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    secure:   process.env.NODE_ENV === 'production',
+    maxAge:   24 * 60 * 60 * 1000, // 1 天
+  },
+}));
 
-  try {
-    const result = await processImage(req.file.buffer, options);
-    return res.json({ success: true, ...result });
-  } catch (err) {
-    console.error('[process error]', err.message);
-    return res.status(500).json({ success: false, error: err.message });
-  }
-});
+// ─── Routes ───────────────────────────────────────────────────────────────────
+app.get('/health', (req, res) => res.json({ status: 'ok', version }));
 
-// ─── 404 ─────────────────────────────────────────────────────────────────────
+app.use('/',      authRouter);
+app.use('/api',   apiRouter);
+app.use('/admin', adminRouter);
+
+// ─── 404 / Error ──────────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ success: false, error: 'Not found' });
 });
 
-// ─── 啟動 ─────────────────────────────────────────────────────────────────────
+app.use((err, req, res, _next) => {
+  console.error('[error]', err.message);
+  res.status(500).json({ success: false, error: 'Internal server error' });
+});
+
 app.listen(port, () => {
-  console.log(`nas-image-service listening on port ${port}`);
+  console.log(`imgflow-server v${version} listening on port ${port}`);
 });

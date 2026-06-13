@@ -1,0 +1,97 @@
+<%- include('partials/header') %>
+
+<div style="display:grid;grid-template-columns:1fr 380px;gap:24px;align-items:start;">
+
+  <div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>方案名稱</th><th>月上限</th><th>價格</th><th>客戶數</th><th>狀態</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+        <% tiers.forEach(tier => { %>
+          <tr>
+            <td><strong><%= tier.name %></strong></td>
+            <td><%= tier.monthly_image_limit === 0 ? '無限制' : tier.monthly_image_limit.toLocaleString() + ' 張' %></td>
+            <td><%= tier.price === 0 ? '免費' : 'NT$ ' + tier.price %></td>
+            <td><%= tier.client_count %></td>
+            <td><span class="badge <%= tier.is_active ? 'badge-active' : 'badge-inactive' %>"><%= tier.is_active ? '啟用' : '停用' %></span></td>
+            <td>
+              <div style="display:flex;gap:6px;">
+                <button class="btn btn-sm btn-secondary" onclick='openEdit(<%= JSON.stringify(tier) %>)'>編輯</button>
+                <% if (tier.client_count === 0) { %>
+                <form method="post" action="/admin/tiers/<%= tier.id %>/toggle">
+                  <button class="btn btn-sm btn-danger">停用</button>
+                </form>
+                <% } %>
+              </div>
+            </td>
+          </tr>
+        <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div>
+    <div class="form-card">
+      <h3 style="margin:0 0 16px;font-size:15px;">新增方案</h3>
+      <form method="post" action="/admin/tiers/create">
+        <div class="form-group">
+          <label>方案名稱</label>
+          <input type="text" name="name" required placeholder="例：基本方案">
+        </div>
+        <div class="form-group">
+          <label>每月圖片上限（0 = 無限制）</label>
+          <input type="number" name="monthly_image_limit" value="0" min="0">
+        </div>
+        <div class="form-group">
+          <label>價格（元，0 = 免費）</label>
+          <input type="number" name="price" value="0" min="0">
+        </div>
+        <button type="submit" class="btn btn-primary">建立方案</button>
+      </form>
+    </div>
+  </div>
+
+</div>
+
+<!-- 編輯 Modal -->
+<div id="edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:center;justify-content:center;">
+  <div class="form-card" style="width:380px;">
+    <h3 style="margin:0 0 16px;font-size:15px;">編輯方案</h3>
+    <form method="post" id="edit-form">
+      <div class="form-group">
+        <label>方案名稱</label>
+        <input type="text" name="name" id="edit-name" required>
+      </div>
+      <div class="form-group">
+        <label>每月圖片上限（0 = 無限制）</label>
+        <input type="number" name="monthly_image_limit" id="edit-limit" min="0">
+      </div>
+      <div class="form-group">
+        <label>價格（元）</label>
+        <input type="number" name="price" id="edit-price" min="0">
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button type="submit" class="btn btn-primary">儲存</button>
+        <button type="button" class="btn btn-secondary" onclick="closeEdit()">取消</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openEdit(tier) {
+  document.getElementById('edit-name').value  = tier.name;
+  document.getElementById('edit-limit').value = tier.monthly_image_limit;
+  document.getElementById('edit-price').value = tier.price;
+  document.getElementById('edit-form').action = '/admin/tiers/' + tier.id + '/update';
+  document.getElementById('edit-modal').style.display = 'flex';
+}
+function closeEdit() {
+  document.getElementById('edit-modal').style.display = 'none';
+}
+</script>
+
+<%- include('partials/footer') %>

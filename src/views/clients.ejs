@@ -1,0 +1,66 @@
+<%- include('partials/header') %>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>客戶</th>
+        <th>Email</th>
+        <th>方案</th>
+        <th>本月用量</th>
+        <th>API Keys</th>
+        <th>狀態</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody>
+    <% if (!clients.length) { %>
+      <tr><td colspan="7" class="empty-cell">尚無客戶</td></tr>
+    <% } %>
+    <% clients.forEach(client => { %>
+      <tr>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <% if (client.avatar_url) { %>
+              <img src="<%= client.avatar_url %>" style="width:28px;height:28px;border-radius:50%;">
+            <% } %>
+            <span><%= client.name %></span>
+          </div>
+        </td>
+        <td><%= client.email %></td>
+        <td>
+          <form method="post" action="/admin/clients/<%= client.id %>/tier" style="margin:0;">
+            <select name="tier_id" onchange="this.form.submit()" class="tier-select">
+              <% tiers.forEach(t => { %>
+                <option value="<%= t.id %>" <%= t.id === client.tier_id ? 'selected' : '' %>><%= t.name %></option>
+              <% }) %>
+            </select>
+          </form>
+        </td>
+        <td><%= client.monthly_usage.toLocaleString() %> 張</td>
+        <td><%= client.key_count %> 組</td>
+        <td>
+          <span class="badge <%= client.is_active ? 'badge-active' : 'badge-inactive' %>">
+            <%= client.is_active ? '啟用' : '停用' %>
+          </span>
+        </td>
+        <td>
+          <div style="display:flex;gap:6px;">
+            <form method="post" action="/admin/clients/<%= client.id %>/toggle">
+              <button class="btn btn-sm <%= client.is_active ? 'btn-secondary' : 'btn-primary' %>">
+                <%= client.is_active ? '停用' : '啟用' %>
+              </button>
+            </form>
+            <form method="post" action="/admin/clients/<%= client.id %>/key/create">
+              <input type="hidden" name="label" value="新 Key">
+              <button class="btn btn-sm btn-secondary">＋ Key</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+    <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,22 @@
+<%- include('partials/header') %>
+
+<div class="stats-grid">
+  <div class="card">
+    <div class="card-num"><%= stats.totalClients %></div>
+    <div class="card-label">活躍客戶</div>
+  </div>
+  <div class="card">
+    <div class="card-num"><%= stats.totalKeys %></div>
+    <div class="card-label">API Key 數</div>
+  </div>
+  <div class="card">
+    <div class="card-num"><%= stats.monthlyImages.toLocaleString() %></div>
+    <div class="card-label">本月處理張數</div>
+  </div>
+  <div class="card">
+    <div class="card-num"><%= stats.todayImages.toLocaleString() %></div>
+    <div class="card-label">今日處理張數</div>
+  </div>
+</div>
+
+<%- include('partials/footer') %>
