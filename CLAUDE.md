@@ -55,6 +55,29 @@ nas-image-service/
 
 ---
 
+## 分支策略（簡化 git-flow）
+
+| 分支 | 用途 |
+|------|------|
+| `main` | 穩定版，只有 release 才合進來，永遠可部署 |
+| `develop` | 日常開發，所有功能直接在此分支進行 |
+| `release/x.y.z` | 準備上線時從 develop 開，測試通過後合進 main 並 tag |
+| `hotfix/xxx` | 緊急修復，從 main 開，修完同時合回 main 與 develop |
+
+### 版號規則
+
+| 情境 | 版號格式 | 範例 |
+|------|----------|------|
+| 開發中（develop） | `0.y.z` | `0.1.0`、`0.2.0` |
+| 準備上線（release） | `x.y.z-rc.n` | `1.0.0-rc.1` |
+| 正式上線（main） | `x.y.z` | `1.0.0`、`1.1.0` |
+| 緊急修復（hotfix） | 在現有版號上 patch +1 | `1.0.1` |
+
+- 第一個正式上線版本為 **1.0.0**
+- `package.json` 是版號的唯一真實來源（`/health` 從此讀取）
+
+---
+
 ## Commit 規範
 
 遵循 Angular Commit Message Convention（參考：https://www.ruanyifeng.com/blog/2016/01/commit_message_change_log.html）。
