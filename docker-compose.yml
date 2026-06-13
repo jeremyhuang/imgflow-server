@@ -9,6 +9,8 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+    volumes:
+      - ./data:/app/data   # SQLite 資料庫持久化，容器重建後資料不遺失
     # 限制資源，避免壓圖時把 NAS 打爆
     deploy:
       resources:

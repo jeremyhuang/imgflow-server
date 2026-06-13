@@ -32,6 +32,138 @@ docker compose up -d
 
 ---
 
+## Synology NAS GUI 部署（Container Manager）
+
+適合不習慣 CLI 的用戶，全程在 DSM 圖形介面操作。
+
+### 前置需求
+
+- DSM 7.2+，已安裝 **Container Manager**（套件中心搜尋安裝）
+- NAS 已連上網路，並設定好對外域名（Google OAuth 需要 HTTPS callback URL）
+
+---
+
+### Step 1：把程式碼放到 NAS
+
+**方法 A — File Station（拖曳上傳，適合首次）**
+
+1. 開啟 **File Station**，在 `docker/` 資料夾下建立新資料夾，命名為 `imgflow-server`
+2. 把整個專案資料夾的內容（除 `node_modules/`）拖曳上傳進去
+
+**方法 B — SSH git clone（適合日後更新）**
+
+1. DSM → 控制台 → 終端機與 SNMP → 啟用 SSH 服務
+2. 用終端機連入 NAS：
+   ```bash
+   ssh 你的NAS帳號@NAS的IP
+   ```
+3. 切換到 docker 資料夾並 clone：
+   ```bash
+   cd /volume1/docker
+   git clone git@github.com:jeremyhuang035/imgflow-server.git
+   ```
+
+---
+
+### Step 2：建立 `.env` 設定檔
+
+1. **File Station** 中進入 `docker/imgflow-server/`
+2. 找到 `.env.example`，右鍵 → **複製** → 重新命名為 `.env`
+3. 右鍵 `.env` → **以文字編輯器開啟**，填入以下值：
+
+```
+PORT=3000
+NODE_ENV=production
+SESSION_SECRET=（換成一段長隨機字串，至少 32 字元）
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=（設定你要的後台密碼）
+GOOGLE_CLIENT_ID=（Google Cloud Console 申請的 Client ID）
+GOOGLE_CLIENT_SECRET=（對應的 Client Secret）
+GOOGLE_CALLBACK_URL=https://你的網域/auth/google/callback
+```
+
+> **如何取得 Google Client ID/Secret？**
+> 1. 前往 [Google Cloud Console](https://console.cloud.google.com/)
+> 2. 建立或選擇一個專案
+> 3. API 和服務 → 憑證 → 建立憑證 → OAuth 用戶端 ID
+> 4. 應用程式類型選「網頁應用程式」
+> 5. 已授權的重新導向 URI 填入：`https://你的網域/auth/google/callback`
+> 6. 建立後複製 Client ID 和 Client Secret
+
+---
+
+### Step 3：Container Manager 建立專案
+
+1. 開啟 **Container Manager** → 左側選單點 **專案（Project）**
+2. 點右上角 **新增**
+3. 填寫：
+   - **專案名稱**：`imgflow-server`（自訂）
+   - **路徑**：選擇 `docker/imgflow-server`（即上傳程式碼的資料夾）
+   - **來源**：選「使用現有的 docker-compose.yml」
+4. 下一步會自動偵測到 `docker-compose.yml`，確認內容無誤
+5. 下一步設定 Port：確認 `3000:3000` 對應正確
+6. 點 **完成** → Container Manager 會自動 **Build image 並啟動容器**
+
+> Build 過程需要幾分鐘（需下載 node:20-alpine 並編譯 sharp），可在「建置記錄」頁面查看進度。
+
+---
+
+### Step 4：確認服務正常
+
+1. 在 Container Manager → 專案 → `imgflow-server`，確認狀態為 **執行中（Running）**
+2. 瀏覽器開啟 `http://NAS的IP:3000/health`，應看到：
+   ```json
+   { "status": "ok", "version": "0.1.0" }
+   ```
+3. 開啟 `http://NAS的IP:3000/admin`，以 `.env` 設定的帳密登入
+
+---
+
+### Step 5：設定外部存取（Reverse Proxy）
+
+Google OAuth 需要 HTTPS 的 callback URL，建議透過 DSM 的反向代理設定對外域名。
+
+1. DSM → 控制台 → 登入入口 → **進階** → **反向代理規則**
+2. 點 **新增**，填入：
+   - **描述**：ImgFlow Server
+   - **通訊協定（來源）**：HTTPS
+   - **主機名稱（來源）**：`imgflow.你的網域.com`（需先在 DNS 設定 A record 指向 NAS 外部 IP）
+   - **連接埠（來源）**：443
+   - **通訊協定（目的地）**：HTTP
+   - **主機名稱（目的地）**：`localhost`
+   - **連接埠（目的地）**：3000
+3. 儲存後，外部即可透過 `https://imgflow.你的網域.com` 訪問服務
+4. 回頭把 `.env` 中的 `GOOGLE_CALLBACK_URL` 改為 `https://imgflow.你的網域.com/auth/google/callback`，並在 Container Manager 重新啟動容器（Stop → Start）
+
+---
+
+### 日後更新版本
+
+**方法 A — File Station 覆蓋上傳**
+
+1. 上傳新版程式碼到 `docker/imgflow-server/`（`.env` 與 `data/` 不要刪）
+2. Container Manager → 專案 → `imgflow-server` → **停止** → **建置**（重新 build）→ **啟動**
+
+**方法 B — SSH git pull**
+
+```bash
+ssh 你的NAS帳號@NAS的IP
+cd /volume1/docker/imgflow-server
+git pull origin develop     # 或 main（正式版）
+```
+
+然後在 Container Manager 重新 build 並啟動。
+
+---
+
+### 注意事項
+
+- `data/` 資料夾（SQLite DB）已透過 `docker-compose.yml` 的 `volumes` 掛載到主機，**重建容器後資料不會遺失**
+- `.env` 不在版本控制中，更新程式碼不會覆蓋 `.env`
+- 如果更新後後台無法登入，確認 `ADMIN_USERNAME` / `ADMIN_PASSWORD` 與資料庫中已存的帳號一致（seed 只在 DB 為空時執行）
+
+---
+
 ## 需求
 
 - Docker + Docker Compose（建議 Docker Desktop 或 Synology Container Manager）
