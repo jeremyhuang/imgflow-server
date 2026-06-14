@@ -10,11 +10,42 @@ function fmtBytes(b) {
 
 var ACTION_COLORS = { compress: '#4c7df4', watermark: '#f59e0b', webp: '#10b981' };
 var ACTION_LABELS = { compress: '壓縮', watermark: '浮水印', webp: 'WebP' };
+
+function qs(overrides) {
+  var p = {};
+  if (filter_client) p.client_id = filter_client;
+  if (filter_action) p.action    = filter_action;
+  Object.assign(p, overrides);
+  var parts = [];
+  Object.keys(p).forEach(function(k) { if (p[k]) parts.push(k + '=' + encodeURIComponent(p[k])); });
+  return parts.length ? '?' + parts.join('&') : '';
+}
 %>
 
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-  <span style="font-size:13px;color:#666;">共 <%= total %> 筆記錄</span>
-</div>
+<!-- 篩選列 -->
+<form method="get" action="/admin/log" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+  <select name="client_id" class="form-control" style="min-width:160px;padding:5px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px;">
+    <option value="">全部客戶</option>
+    <% clients.forEach(function(c) { %>
+      <option value="<%= c.id %>" <%= filter_client === c.id ? 'selected' : '' %>><%= c.name %></option>
+    <% }) %>
+  </select>
+
+  <select name="action" style="padding:5px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px;">
+    <option value="">全部操作</option>
+    <option value="compress"  <%= filter_action === 'compress'  ? 'selected' : '' %>>壓縮</option>
+    <option value="watermark" <%= filter_action === 'watermark' ? 'selected' : '' %>>浮水印</option>
+    <option value="webp"      <%= filter_action === 'webp'      ? 'selected' : '' %>>WebP</option>
+  </select>
+
+  <button type="submit" class="btn btn-primary btn-sm">套用篩選</button>
+
+  <% if (filter_client || filter_action) { %>
+    <a href="/admin/log" class="btn btn-secondary btn-sm">清除篩選</a>
+  <% } %>
+
+  <span style="margin-left:auto;font-size:13px;color:#666;">共 <%= total %> 筆記錄</span>
+</form>
 
 <div class="table-wrap">
   <table>
@@ -41,7 +72,7 @@ var ACTION_LABELS = { compress: '壓縮', watermark: '浮水印', webp: 'WebP' }
       <tr>
         <td style="white-space:nowrap;font-size:12px;color:#555;"><%= log.created_at ? log.created_at.slice(0,16).replace('T',' ') : '—' %></td>
         <td style="font-size:13px;">
-          <div><%= log.client_name %></div>
+          <div><a href="/admin/log?client_id=<%= log.client_id || '' %>" style="color:inherit;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'"><%= log.client_name %></a></div>
           <div style="font-size:11px;color:#999;"><%= log.client_email %></div>
         </td>
         <td style="font-size:12px;max-width:200px;word-break:break-all;">
@@ -73,11 +104,11 @@ var ACTION_LABELS = { compress: '壓縮', watermark: '浮水印', webp: 'WebP' }
 <% if (total_pages > 1) { %>
 <div style="display:flex;gap:6px;margin-top:16px;align-items:center;">
   <% if (current_page > 1) { %>
-    <a href="?page=<%= current_page - 1 %>" class="btn btn-sm btn-secondary">‹ 上一頁</a>
+    <a href="<%= qs({ page: current_page - 1 }) %>" class="btn btn-sm btn-secondary">‹ 上一頁</a>
   <% } %>
   <span style="font-size:13px;color:#666;">第 <%= current_page %> / <%= total_pages %> 頁</span>
   <% if (current_page < total_pages) { %>
-    <a href="?page=<%= current_page + 1 %>" class="btn btn-sm btn-secondary">下一頁 ›</a>
+    <a href="<%= qs({ page: current_page + 1 }) %>" class="btn btn-sm btn-secondary">下一頁 ›</a>
   <% } %>
 </div>
 <% } %>

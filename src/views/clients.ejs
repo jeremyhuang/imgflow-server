@@ -68,6 +68,7 @@
         </td>
         <td>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <a href="/admin/log?client_id=<%= client.id %>" class="btn btn-sm btn-secondary">處理記錄</a>
             <form method="post" action="/admin/clients/<%= client.id %>/toggle" style="margin:0;">
               <button class="btn btn-sm <%= client.is_active ? 'btn-secondary' : 'btn-primary' %>">
                 <%= client.is_active ? '停用' : '啟用' %>

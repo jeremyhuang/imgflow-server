@@ -83,7 +83,7 @@ docker compose up -d
 1. 在 Container Manager → 專案 → `imgflow-server`，確認狀態為 **執行中（Running）**
 2. 瀏覽器開啟 `http://NAS的IP:3000/health`，應看到：
    ```json
-   { "status": "ok", "version": "0.1.10" }
+   { "status": "ok", "version": "0.1.11" }
    ```
 3. 開啟 `http://NAS的IP:3000/admin`，首次進入自動跳 `/admin/setup`，建立管理員帳號後登入
 
@@ -220,7 +220,7 @@ nas-image-service/
 
 ### `package.json`
 
-版本：`0.1.10`，主入口：`src/index.js`。
+版本：`0.1.11`，主入口：`src/index.js`。
 
 **相依套件：**
 
@@ -627,7 +627,7 @@ Content-Type: multipart/form-data
 ### `GET /health`
 
 ```json
-{ "status": "ok", "version": "0.1.10" }
+{ "status": "ok", "version": "0.1.11" }
 ```
 
 ---
@@ -670,6 +670,6 @@ wio_apply_restore AJAX → WIO_Settings::save() 寫入舊設定，設定同步�
 | 分支 | 版號 |
 |------|------|
 | main | `0.0.1` |
-| develop | `0.1.10` |
+| develop | `0.1.11` |
 
 正式上線版本從 `1.0.0` 開始。
