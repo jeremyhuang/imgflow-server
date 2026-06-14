@@ -38,6 +38,7 @@ router.use('/clients',  require('./clients'));
 router.use('/tiers',    require('./tiers'));
 router.use('/users',    require('./users'));
 router.use('/stats',    require('./stats'));
+router.use('/log',      require('./log'));
 router.use('/settings', require('./settings'));
 
 module.exports = router;

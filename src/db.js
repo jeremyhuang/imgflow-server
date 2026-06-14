@@ -99,10 +99,11 @@ db.exec(`
   );
 `);
 
-// Migration: add action_count for existing DBs that predate the column
-try {
-  db.exec('ALTER TABLE usage_logs ADD COLUMN action_count INTEGER NOT NULL DEFAULT 1');
-} catch (_) { /* column already exists */ }
+// Migrations for existing DBs
+try { db.exec('ALTER TABLE usage_logs ADD COLUMN action_count INTEGER NOT NULL DEFAULT 1'); } catch (_) {}
+try { db.exec("ALTER TABLE usage_logs ADD COLUMN filename TEXT NOT NULL DEFAULT ''"); } catch (_) {}
+try { db.exec("ALTER TABLE usage_logs ADD COLUMN actions_json TEXT NOT NULL DEFAULT '[]'"); } catch (_) {}
+try { db.exec("ALTER TABLE usage_logs ADD COLUMN source_url TEXT NOT NULL DEFAULT ''"); } catch (_) {}
 
 // ─── 初始資料 ─────────────────────────────────────────────────────────────────
 

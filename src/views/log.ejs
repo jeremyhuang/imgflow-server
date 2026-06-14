@@ -1,0 +1,85 @@
+<%- include('partials/header') %>
+
+<%
+function fmtBytes(b) {
+  if (!b) return '0 B';
+  var u = ['B','KB','MB','GB'];
+  var i = Math.floor(Math.log(b) / Math.log(1024));
+  return (b / Math.pow(1024, i)).toFixed(1) + ' ' + u[i];
+}
+
+var ACTION_COLORS = { compress: '#4c7df4', watermark: '#f59e0b', webp: '#10b981' };
+var ACTION_LABELS = { compress: '壓縮', watermark: '浮水印', webp: 'WebP' };
+%>
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+  <span style="font-size:13px;color:#666;">共 <%= total %> 筆記錄</span>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>時間</th>
+        <th>客戶</th>
+        <th>檔案</th>
+        <th>操作</th>
+        <th>輸入</th>
+        <th>輸出</th>
+        <th>WebP</th>
+        <th>耗時</th>
+      </tr>
+    </thead>
+    <tbody>
+    <% if (!logs.length) { %>
+      <tr><td colspan="8" class="empty-cell">尚無記錄</td></tr>
+    <% } %>
+    <% logs.forEach(function(log) {
+      var actions = [];
+      try { actions = JSON.parse(log.actions_json || '[]'); } catch(e) {}
+    %>
+      <tr>
+        <td style="white-space:nowrap;font-size:12px;color:#555;"><%= log.created_at ? log.created_at.slice(0,16).replace('T',' ') : '—' %></td>
+        <td style="font-size:13px;">
+          <div><%= log.client_name %></div>
+          <div style="font-size:11px;color:#999;"><%= log.client_email %></div>
+        </td>
+        <td style="font-size:12px;max-width:200px;word-break:break-all;">
+          <% if (log.source_url) { %>
+            <a href="<%= log.source_url %>" target="_blank" style="color:#4c7df4;"><%= log.filename || log.source_url.split('/').pop() %></a>
+          <% } else if (log.filename) { %>
+            <%= log.filename %>
+          <% } else { %>
+            <span style="color:#bbb;">—</span>
+          <% } %>
+        </td>
+        <td>
+          <% actions.forEach(function(a) { %>
+            <span style="display:inline-block;padding:1px 7px;border-radius:3px;font-size:11px;color:#fff;background:<%= ACTION_COLORS[a] || '#888' %>;margin:1px;">
+              <%= ACTION_LABELS[a] || a %>
+            </span>
+          <% }) %>
+        </td>
+        <td style="font-size:12px;white-space:nowrap;"><%= fmtBytes(log.input_size) %></td>
+        <td style="font-size:12px;white-space:nowrap;"><%= fmtBytes(log.output_size) %></td>
+        <td style="font-size:12px;white-space:nowrap;"><%= log.webp_size ? fmtBytes(log.webp_size) : '—' %></td>
+        <td style="font-size:12px;white-space:nowrap;color:#666;"><%= log.processing_ms %> ms</td>
+      </tr>
+    <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<% if (total_pages > 1) { %>
+<div style="display:flex;gap:6px;margin-top:16px;align-items:center;">
+  <% if (current_page > 1) { %>
+    <a href="?page=<%= current_page - 1 %>" class="btn btn-sm btn-secondary">‹ 上一頁</a>
+  <% } %>
+  <span style="font-size:13px;color:#666;">第 <%= current_page %> / <%= total_pages %> 頁</span>
+  <% if (current_page < total_pages) { %>
+    <a href="?page=<%= current_page + 1 %>" class="btn btn-sm btn-secondary">下一頁 ›</a>
+  <% } %>
+</div>
+<% } %>
+
+<%- include('partials/footer') %>
