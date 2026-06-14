@@ -23,11 +23,23 @@
 
     <div class="form-group" style="margin-top:16px;">
       <label>Client Secret</label>
-      <input type="password" name="google_client_secret"
-             value="<%= settings.google_client_secret %>"
-             placeholder="GOCSPX-..."
-             class="form-control">
+      <div style="display:flex;gap:6px;align-items:center;">
+        <input type="password" id="client-secret" name="google_client_secret"
+               value="<%= settings.google_client_secret %>"
+               placeholder="GOCSPX-..."
+               class="form-control" style="flex:1;">
+        <button type="button" onclick="toggleSecret(this)"
+                style="padding:6px 10px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;font-size:15px;line-height:1;"
+                title="顯示 / 隱藏">👁</button>
+      </div>
     </div>
+
+    <script>
+      function toggleSecret(btn) {
+        var inp = document.getElementById('client-secret');
+        inp.type = inp.type === 'password' ? 'text' : 'password';
+      }
+    </script>
 
     <div class="form-group" style="margin-top:16px;">
       <label>服務網域</label>
