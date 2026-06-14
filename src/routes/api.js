@@ -9,6 +9,10 @@ const { processImage } = require('../processor');
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
+router.get('/verify', apiAuth, (req, res) => {
+  res.json({ status: 'ok' });
+});
+
 router.post('/process', apiAuth, upload.single('image'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ success: false, error: '缺少 image 欄位' });
