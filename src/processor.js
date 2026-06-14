@@ -186,6 +186,11 @@ async function processImage(imageBuffer, options = {}) {
     };
   }
 
+  // 壓縮後反而變大 → 告知呼叫端跳過回寫，省去圖片傳輸
+  if (outputBuffer.length >= inputSize) {
+    return { inputSize, skipped: true, webp: webpResult };
+  }
+
   return {
     inputSize,
     output: {

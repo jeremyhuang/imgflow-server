@@ -46,13 +46,14 @@ router.post('/process', apiAuth, upload.single('image'), async (req, res) => {
     const actions    = Array.isArray(options.actions) ? options.actions : ['compress', 'watermark', 'webp'];
     const filename   = Buffer.from(req.file.originalname || '', 'latin1').toString('utf8');
     const sourceUrl  = typeof options.sourceUrl === 'string' ? options.sourceUrl : '';
+    const outputSize = result.skipped ? result.inputSize : result.output.size;
     db.prepare(`
       INSERT INTO usage_logs (api_key_id, input_size, output_size, webp_size, has_watermark, processing_ms, action_count, filename, actions_json, source_url)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       req.apiKeyId,
       result.inputSize,
-      result.output.size,
+      outputSize,
       result.webp?.size ?? 0,
       (options.watermarkUrl && actions.includes('watermark')) ? 1 : 0,
       Date.now() - startMs,
