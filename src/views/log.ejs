@@ -12,12 +12,13 @@ var ACTION_COLORS = { compress: '#4c7df4', watermark: '#f59e0b', webp: '#10b981'
 var ACTION_LABELS = { compress: '壓縮', watermark: '浮水印', webp: 'WebP' };
 
 function qs(overrides) {
-  var p = {};
-  if (filter_client) p.client_id = filter_client;
-  if (filter_action) p.action    = filter_action;
-  Object.assign(p, overrides);
   var parts = [];
-  Object.keys(p).forEach(function(k) { if (p[k]) parts.push(k + '=' + encodeURIComponent(p[k])); });
+  var clientId = overrides.client_id !== undefined ? overrides.client_id : filter_client;
+  var acts     = overrides.actions    !== undefined ? overrides.actions    : filter_actions;
+  var pg       = overrides.page       !== undefined ? overrides.page       : '';
+  if (clientId) parts.push('client_id=' + encodeURIComponent(clientId));
+  (acts || []).forEach(function(a) { parts.push('action=' + encodeURIComponent(a)); });
+  if (pg) parts.push('page=' + pg);
   return parts.length ? '?' + parts.join('&') : '';
 }
 %>
@@ -31,16 +32,22 @@ function qs(overrides) {
     <% }) %>
   </select>
 
-  <select name="action" style="padding:5px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px;">
-    <option value="">全部操作</option>
-    <option value="compress"  <%= filter_action === 'compress'  ? 'selected' : '' %>>壓縮</option>
-    <option value="watermark" <%= filter_action === 'watermark' ? 'selected' : '' %>>浮水印</option>
-    <option value="webp"      <%= filter_action === 'webp'      ? 'selected' : '' %>>WebP</option>
-  </select>
+  <div style="display:flex;gap:10px;align-items:center;padding:5px 10px;border:1px solid #ddd;border-radius:4px;background:#fff;font-size:13px;">
+    <span style="color:#888;margin-right:2px;">操作</span>
+    <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+      <input type="checkbox" name="action" value="compress"  <%= filter_actions.includes('compress')  ? 'checked' : '' %>> 壓縮
+    </label>
+    <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+      <input type="checkbox" name="action" value="watermark" <%= filter_actions.includes('watermark') ? 'checked' : '' %>> 浮水印
+    </label>
+    <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+      <input type="checkbox" name="action" value="webp"      <%= filter_actions.includes('webp')      ? 'checked' : '' %>> WebP
+    </label>
+  </div>
 
   <button type="submit" class="btn btn-primary btn-sm">套用篩選</button>
 
-  <% if (filter_client || filter_action) { %>
+  <% if (filter_client || filter_actions.length) { %>
     <a href="/admin/log" class="btn btn-secondary btn-sm">清除篩選</a>
   <% } %>
 
@@ -110,6 +117,7 @@ function qs(overrides) {
   <% if (current_page < total_pages) { %>
     <a href="<%= qs({ page: current_page + 1 }) %>" class="btn btn-sm btn-secondary">下一頁 ›</a>
   <% } %>
+
 </div>
 <% } %>
 

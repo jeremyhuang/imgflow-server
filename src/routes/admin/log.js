@@ -3,14 +3,18 @@
 const express = require('express');
 const { db }  = require('../../db');
 
+const VALID_ACTIONS = ['compress', 'watermark', 'webp'];
+
 const router = express.Router();
 
 router.get('/', (req, res) => {
-  const page      = Math.max(1, parseInt(req.query.page) || 1);
-  const per_page  = 30;
-  const offset    = (page - 1) * per_page;
-  const clientId  = parseInt(req.query.client_id) || 0;
-  const action    = ['compress', 'watermark', 'webp'].includes(req.query.action) ? req.query.action : '';
+  const page     = Math.max(1, parseInt(req.query.page) || 1);
+  const per_page = 30;
+  const offset   = (page - 1) * per_page;
+  const clientId = parseInt(req.query.client_id) || 0;
+
+  const raw     = req.query.action || [];
+  const actions = (Array.isArray(raw) ? raw : [raw]).filter(a => VALID_ACTIONS.includes(a));
 
   const conditions = [];
   const args       = [];
@@ -19,9 +23,9 @@ router.get('/', (req, res) => {
     conditions.push('ca.id = ?');
     args.push(clientId);
   }
-  if (action) {
-    conditions.push('ul.actions_json LIKE ?');
-    args.push(`%"${action}"%`);
+  if (actions.length) {
+    conditions.push('(' + actions.map(() => 'ul.actions_json LIKE ?').join(' OR ') + ')');
+    actions.forEach(a => args.push(`%"${a}"%`));
   }
 
   const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
@@ -36,7 +40,7 @@ router.get('/', (req, res) => {
   const total = db.prepare(`SELECT COUNT(*) as c ${base}`).get(...args).c;
 
   const logs = db.prepare(`
-    SELECT ul.*, ca.name as client_name, ca.email as client_email
+    SELECT ul.*, ca.id as client_id, ca.name as client_name, ca.email as client_email
     ${base}
     ORDER BY ul.created_at DESC
     LIMIT ? OFFSET ?
@@ -45,16 +49,16 @@ router.get('/', (req, res) => {
   const clients = db.prepare('SELECT id, name FROM client_accounts ORDER BY name').all();
 
   res.render('log', {
-    page:          'log',
-    title:         '處理記錄',
+    page:           'log',
+    title:          '處理記錄',
     logs,
     total,
     per_page,
-    current_page:  page,
-    total_pages:   Math.ceil(total / per_page),
+    current_page:   page,
+    total_pages:    Math.ceil(total / per_page),
     clients,
-    filter_client: clientId,
-    filter_action: action,
+    filter_client:  clientId,
+    filter_actions: actions,
   });
 });
 
