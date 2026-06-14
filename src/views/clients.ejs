@@ -60,7 +60,7 @@
           <% if (client.settings_json) { %>
             <button type="button" class="btn btn-sm btn-secondary"
                     onclick="showSettings(<%= client.id %>, this.dataset.s, this.dataset.t)"
-                    data-s="<%- client.settings_json %>"
+                    data-s="<%= client.settings_json %>"
                     data-t="<%= client.settings_updated_at || '' %>">查看設定</button>
           <% } else { %>
             <span style="color:#999;font-size:12px;">尚無</span>
