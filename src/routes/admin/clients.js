@@ -13,9 +13,12 @@ router.get('/', (req, res) => {
       (SELECT COALESCE(SUM(ul.action_count), 0) FROM usage_logs ul
          JOIN api_keys ak ON ul.api_key_id = ak.id
          WHERE ak.client_id = ca.id
-           AND ul.created_at >= datetime('now', 'start of month')) as monthly_usage
+           AND ul.created_at >= datetime('now', 'start of month')) as monthly_usage,
+      cs.settings_json,
+      cs.updated_at as settings_updated_at
     FROM client_accounts ca
     LEFT JOIN tiers t ON ca.tier_id = t.id
+    LEFT JOIN client_settings cs ON cs.client_id = ca.id
     ORDER BY ca.created_at DESC
   `).all();
 

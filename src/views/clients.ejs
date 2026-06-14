@@ -18,12 +18,13 @@
         <th>本月用量</th>
         <th>API Key</th>
         <th>狀態</th>
+        <th>外掛設定</th>
         <th>操作</th>
       </tr>
     </thead>
     <tbody>
     <% if (!clients.length) { %>
-      <tr><td colspan="7" class="empty-cell">尚無客戶</td></tr>
+      <tr><td colspan="8" class="empty-cell">尚無客戶</td></tr>
     <% } %>
     <% clients.forEach(client => { %>
       <tr>
@@ -64,6 +65,16 @@
           </span>
         </td>
         <td>
+          <% if (client.settings_json) { %>
+            <button type="button" class="btn btn-sm btn-secondary"
+                    onclick="showSettings(<%= client.id %>, this.dataset.s, this.dataset.t)"
+                    data-s="<%- client.settings_json %>"
+                    data-t="<%= client.settings_updated_at || '' %>">查看設定</button>
+          <% } else { %>
+            <span style="color:#999;font-size:12px;">尚無</span>
+          <% } %>
+        </td>
+        <td>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
             <form method="post" action="/admin/clients/<%= client.id %>/toggle" style="margin:0;">
               <button class="btn btn-sm <%= client.is_active ? 'btn-secondary' : 'btn-primary' %>">
@@ -82,6 +93,20 @@
   </table>
 </div>
 
+<!-- 設定查看 Modal -->
+<div id="settings-modal-overlay" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeSettings()">
+  <div class="modal" style="max-width:560px;width:90%;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="margin:0;">外掛設定</h3>
+      <button type="button" class="btn btn-sm btn-secondary" onclick="closeSettings()">✕ 關閉</button>
+    </div>
+    <p id="settings-updated-at" style="margin:0 0 12px;font-size:12px;color:#888;"></p>
+    <table id="settings-table" style="width:100%;border-collapse:collapse;font-size:13px;">
+      <colgroup><col style="width:45%"><col style="width:55%"></colgroup>
+    </table>
+  </div>
+</div>
+
 <script>
 function toggleKey(btn) {
   var span = btn.previousElementSibling;
@@ -92,6 +117,67 @@ function toggleKey(btn) {
     span.textContent = '●●●●●●●●';
     btn.textContent = '顯示';
   }
+}
+
+var LABELS = {
+  jpeg_quality:        'JPEG 壓縮品質',
+  webp_quality:        'WebP 品質',
+  output_webp:         '輸出 WebP',
+  compress_all_sizes:  '壓縮子尺寸',
+  compress_on_upload:  '上傳時自動壓縮',
+  process_mode:        '處理模式',
+  watermark_enabled:   '啟用浮水印',
+  watermark_image_url: '浮水印圖片 URL',
+  watermark_min_width: '浮水印最小寬度 (px)',
+  monthly_limit:       '每月操作上限',
+};
+
+var MODE_LABELS = { async: '非同步', sync: '同步' };
+
+function fmtVal(key, val) {
+  if (typeof val === 'boolean') return val ? '✓ 是' : '✗ 否';
+  if (key === 'process_mode') return MODE_LABELS[val] || val;
+  if (key === 'monthly_limit') return val === 0 ? '不限制' : val + ' 次';
+  if (key === 'watermark_image_url') {
+    return val ? '<a href="' + val + '" target="_blank" style="word-break:break-all;">' + val + '</a>' : '—';
+  }
+  return val !== null && val !== undefined && val !== '' ? val : '—';
+}
+
+function wmConfigRow(label, cfg) {
+  if (!cfg || typeof cfg !== 'object') return '';
+  var pos = { tl:'左上',tc:'上中',tr:'右上',ml:'中左',mc:'正中',mr:'中右',bl:'左下',bc:'下中',br:'右下' };
+  var sizeMode = { scale:'比例 ' + (cfg.scale||20) + '%', original:'原始尺寸', custom:'自訂 ' + (cfg.custom_width||300) + 'px' };
+  return '<tr style="background:#f9f9f9;"><td colspan="2" style="padding:6px 8px;font-weight:600;color:#555;">' + label + '</td></tr>' +
+    '<tr><td style="padding:4px 8px 4px 20px;color:#666;">位置</td><td style="padding:4px 8px;">' + (pos[cfg.pos] || cfg.pos) + '</td></tr>' +
+    '<tr><td style="padding:4px 8px 4px 20px;color:#666;">大小</td><td style="padding:4px 8px;">' + (sizeMode[cfg.size_mode] || cfg.size_mode) + '</td></tr>' +
+    '<tr><td style="padding:4px 8px 4px 20px;color:#666;">邊距 X / Y</td><td style="padding:4px 8px;">' + (cfg.margin_x||0) + '% / ' + (cfg.margin_y||0) + '%</td></tr>' +
+    '<tr><td style="padding:4px 8px 4px 20px;color:#666;">透明度</td><td style="padding:4px 8px;">' + (cfg.opacity||100) + '%</td></tr>';
+}
+
+function showSettings(id, jsonStr, updatedAt) {
+  var s;
+  try { s = JSON.parse(jsonStr); } catch(e) { alert('設定資料解析失敗'); return; }
+
+  var rows = '';
+  Object.entries(LABELS).forEach(function(pair) {
+    var key = pair[0], label = pair[1];
+    if (!(key in s)) return;
+    rows += '<tr>' +
+      '<td style="padding:5px 8px;color:#555;border-bottom:1px solid #f0f0f0;">' + label + '</td>' +
+      '<td style="padding:5px 8px;border-bottom:1px solid #f0f0f0;">' + fmtVal(key, s[key]) + '</td>' +
+      '</tr>';
+  });
+  rows += wmConfigRow('浮水印 — 橫向', s.watermark_land);
+  rows += wmConfigRow('浮水印 — 直向', s.watermark_port);
+
+  document.getElementById('settings-table').innerHTML = rows;
+  document.getElementById('settings-updated-at').textContent = updatedAt ? '最後同步：' + updatedAt : '';
+  document.getElementById('settings-modal-overlay').style.display = 'flex';
+}
+
+function closeSettings() {
+  document.getElementById('settings-modal-overlay').style.display = 'none';
 }
 </script>
 
