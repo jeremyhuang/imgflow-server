@@ -86,17 +86,15 @@
   </table>
 </div>
 
-<!-- 設定查看 Modal -->
+<!-- 外掛設定 Modal -->
 <div id="settings-modal-overlay" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeSettings()">
-  <div class="modal" style="max-width:560px;width:90%;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <h3 style="margin:0;">外掛設定</h3>
+  <div class="modal" style="max-width:580px;width:92%;max-height:88vh;display:flex;flex-direction:column;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-shrink:0;">
+      <h3 style="margin:0;" id="settings-modal-title">外掛設定</h3>
       <button type="button" class="btn btn-sm btn-secondary" onclick="closeSettings()">✕ 關閉</button>
     </div>
-    <p id="settings-updated-at" style="margin:0 0 12px;font-size:12px;color:#888;"></p>
-    <table id="settings-table" style="width:100%;border-collapse:collapse;font-size:13px;">
-      <colgroup><col style="width:45%"><col style="width:55%"></colgroup>
-    </table>
+    <p id="settings-updated-at" style="margin:0 0 14px;font-size:12px;color:#aaa;flex-shrink:0;"></p>
+    <div id="settings-body" style="overflow-y:auto;flex:1;"></div>
   </div>
 </div>
 
@@ -112,59 +110,69 @@ function toggleKey(btn) {
   }
 }
 
-var LABELS = {
-  jpeg_quality:        'JPEG 壓縮品質',
-  webp_quality:        'WebP 品質',
-  output_webp:         '輸出 WebP',
-  compress_all_sizes:  '壓縮子尺寸',
-  compress_on_upload:  '上傳時自動壓縮',
-  process_mode:        '處理模式',
-  watermark_enabled:   '啟用浮水印',
-  watermark_image_url: '浮水印圖片 URL',
-  watermark_min_width: '浮水印最小寬度 (px)',
-  monthly_limit:       '每月操作上限',
-};
+var MODE_LABELS  = { async: '非同步', sync: '同步' };
+var POS_LABELS   = { tl:'左上',tc:'上中',tr:'右上',ml:'中左',mc:'正中',mr:'中右',bl:'左下',bc:'下中',br:'右下' };
 
-var MODE_LABELS = { async: '非同步', sync: '同步' };
-
-function fmtVal(key, val) {
-  if (typeof val === 'boolean') return val ? '✓ 是' : '✗ 否';
-  if (key === 'process_mode') return MODE_LABELS[val] || val;
-  if (key === 'monthly_limit') return val === 0 ? '不限制' : val + ' 次';
-  if (key === 'watermark_image_url') {
-    return val ? '<a href="' + val + '" target="_blank" style="word-break:break-all;">' + val + '</a>' : '—';
-  }
-  return val !== null && val !== undefined && val !== '' ? val : '—';
+function badge(ok) {
+  return ok
+    ? '<span style="display:inline-block;padding:1px 8px;border-radius:3px;font-size:11px;background:#d1fae5;color:#065f46;">是</span>'
+    : '<span style="display:inline-block;padding:1px 8px;border-radius:3px;font-size:11px;background:#f3f4f6;color:#6b7280;">否</span>';
 }
 
-function wmConfigRow(label, cfg) {
-  if (!cfg || typeof cfg !== 'object') return '';
-  var pos = { tl:'左上',tc:'上中',tr:'右上',ml:'中左',mc:'正中',mr:'中右',bl:'左下',bc:'下中',br:'右下' };
-  var sizeMode = { scale:'比例 ' + (cfg.scale||20) + '%', original:'原始尺寸', custom:'自訂 ' + (cfg.custom_width||300) + 'px' };
-  return '<tr style="background:#f9f9f9;"><td colspan="2" style="padding:6px 8px;font-weight:600;color:#555;">' + label + '</td></tr>' +
-    '<tr><td style="padding:4px 8px 4px 20px;color:#666;">位置</td><td style="padding:4px 8px;">' + (pos[cfg.pos] || cfg.pos) + '</td></tr>' +
-    '<tr><td style="padding:4px 8px 4px 20px;color:#666;">大小</td><td style="padding:4px 8px;">' + (sizeMode[cfg.size_mode] || cfg.size_mode) + '</td></tr>' +
-    '<tr><td style="padding:4px 8px 4px 20px;color:#666;">邊距 X / Y</td><td style="padding:4px 8px;">' + (cfg.margin_x||0) + '% / ' + (cfg.margin_y||0) + '%</td></tr>' +
-    '<tr><td style="padding:4px 8px 4px 20px;color:#666;">透明度</td><td style="padding:4px 8px;">' + (cfg.opacity||100) + '%</td></tr>';
+function row(label, val) {
+  return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f3f4f6;">' +
+    '<span style="color:#6b7280;font-size:13px;">' + label + '</span>' +
+    '<span style="font-size:13px;font-weight:500;text-align:right;max-width:60%;">' + val + '</span></div>';
+}
+
+function section(title) {
+  return '<div style="margin:14px 0 6px;font-size:11px;font-weight:700;letter-spacing:.08em;color:#9ca3af;text-transform:uppercase;">' + title + '</div>';
+}
+
+function wmBlock(cfg) {
+  if (!cfg || typeof cfg !== 'object') return '<span style="color:#ccc;">未設定</span>';
+  var sm = cfg.size_mode === 'scale'    ? '比例 ' + (cfg.scale||20) + '%'
+         : cfg.size_mode === 'custom'   ? '自訂 ' + (cfg.custom_width||300) + 'px'
+         : '原始尺寸';
+  return '<div style="background:#f9fafb;border-radius:6px;padding:8px 12px;font-size:12px;margin-top:4px;">' +
+    '<div style="display:flex;gap:16px;flex-wrap:wrap;">' +
+    '<span><span style="color:#9ca3af;">位置</span> ' + (POS_LABELS[cfg.pos] || cfg.pos) + '</span>' +
+    '<span><span style="color:#9ca3af;">大小</span> ' + sm + '</span>' +
+    '<span><span style="color:#9ca3af;">透明度</span> ' + (cfg.opacity||100) + '%</span>' +
+    '<span><span style="color:#9ca3af;">邊距</span> ' + (cfg.margin_x||0) + '% / ' + (cfg.margin_y||0) + '%</span>' +
+    '</div></div>';
 }
 
 function showSettings(id, jsonStr, updatedAt) {
   var s;
   try { s = JSON.parse(jsonStr); } catch(e) { alert('設定資料解析失敗'); return; }
 
-  var rows = '';
-  Object.entries(LABELS).forEach(function(pair) {
-    var key = pair[0], label = pair[1];
-    if (!(key in s)) return;
-    rows += '<tr>' +
-      '<td style="padding:5px 8px;color:#555;border-bottom:1px solid #f0f0f0;">' + label + '</td>' +
-      '<td style="padding:5px 8px;border-bottom:1px solid #f0f0f0;">' + fmtVal(key, s[key]) + '</td>' +
-      '</tr>';
-  });
-  rows += wmConfigRow('浮水印 — 橫向', s.watermark_land);
-  rows += wmConfigRow('浮水印 — 直向', s.watermark_port);
+  var html = '';
 
-  document.getElementById('settings-table').innerHTML = rows;
+  // ── 壓縮
+  html += section('壓縮設定');
+  html += row('JPEG 壓縮品質',    (s.jpeg_quality ?? '—') + (s.jpeg_quality ? ' %' : ''));
+  html += row('WebP 品質',        (s.webp_quality ?? '—') + (s.webp_quality ? ' %' : ''));
+  html += row('輸出 WebP',        badge(s.output_webp));
+  html += row('壓縮子尺寸',       badge(s.compress_all_sizes));
+  html += row('上傳時自動壓縮',   badge(s.compress_on_upload));
+  html += row('處理模式',         MODE_LABELS[s.process_mode] || s.process_mode || '—');
+
+  // ── 浮水印
+  html += section('浮水印設定');
+  html += row('啟用浮水印',       badge(s.watermark_enabled));
+  html += row('最小套用寬度',     s.watermark_min_width ? s.watermark_min_width + ' px' : '—');
+  if (s.watermark_image_url) {
+    html += row('浮水印圖片',
+      '<a href="' + s.watermark_image_url + '" target="_blank" style="word-break:break-all;font-size:12px;">' +
+      s.watermark_image_url.split('/').pop() + '</a>');
+  }
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;">';
+  html += '<div><div style="font-size:12px;color:#6b7280;margin-bottom:2px;">橫向</div>' + wmBlock(s.watermark_land) + '</div>';
+  html += '<div><div style="font-size:12px;color:#6b7280;margin-bottom:2px;">直向</div>'  + wmBlock(s.watermark_port) + '</div>';
+  html += '</div>';
+
+  document.getElementById('settings-body').innerHTML = html;
   document.getElementById('settings-updated-at').textContent = updatedAt ? '最後同步：' + updatedAt : '';
   document.getElementById('settings-modal-overlay').style.display = 'flex';
 }
