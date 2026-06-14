@@ -1,13 +1,5 @@
 <%- include('partials/header') %>
 
-<% if (flashKey) { %>
-<div class="alert alert-success" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-  <span>✓ API Key 已重置，請複製後交給客戶（此後不再顯示明文）：</span>
-  <code id="flash-key" style="background:#d1fae5;padding:4px 10px;border-radius:4px;font-size:13px;word-break:break-all;"><%= flashKey %></code>
-  <button class="btn btn-sm btn-secondary" onclick="navigator.clipboard.writeText('<%= flashKey %>');this.textContent='✓ 已複製'">複製</button>
-</div>
-<% } %>
-
 <div class="table-wrap">
   <table>
     <thead>

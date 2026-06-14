@@ -24,13 +24,7 @@ router.get('/', (req, res) => {
 
   const tiers = db.prepare('SELECT * FROM tiers WHERE is_active = 1 ORDER BY id').all();
 
-  // flash：重置後顯示新 key
-  const flashKey      = req.session.flashKey      ?? null;
-  const flashClientId = req.session.flashClientId ?? null;
-  delete req.session.flashKey;
-  delete req.session.flashClientId;
-
-  res.render('clients', { page: 'clients', title: '客戶管理', clients, tiers, flashKey, flashClientId });
+  res.render('clients', { page: 'clients', title: '客戶管理', clients, tiers });
 });
 
 // 變更方案
@@ -50,8 +44,6 @@ router.post('/:id/key/reset', (req, res) => {
   const newKey = crypto.randomBytes(32).toString('hex');
   db.prepare('UPDATE api_keys SET is_active = 0 WHERE client_id = ?').run(req.params.id);
   db.prepare("INSERT INTO api_keys (key, client_id, label) VALUES (?, ?, 'key')").run(newKey, req.params.id);
-  req.session.flashKey      = newKey;
-  req.session.flashClientId = parseInt(req.params.id);
   res.redirect('/admin/clients');
 });
 
