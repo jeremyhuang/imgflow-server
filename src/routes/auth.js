@@ -116,10 +116,11 @@ router.get('/auth/exchange', (req, res) => {
   if (!token) return res.status(400).json({ success: false, error: 'Missing token' });
 
   const record = db.prepare(`
-    SELECT at.token, ak.key as api_key, ca.email, ca.name
+    SELECT at.token, ak.key as api_key, ca.email, ca.name, cs.settings_json
     FROM auth_tokens at
     JOIN api_keys ak ON at.api_key_id = ak.id
     JOIN client_accounts ca ON ak.client_id = ca.id
+    LEFT JOIN client_settings cs ON cs.client_id = ca.id
     WHERE at.token = ? AND at.expires_at > datetime('now')
   `).get(token);
 
@@ -127,7 +128,8 @@ router.get('/auth/exchange', (req, res) => {
 
   db.prepare('DELETE FROM auth_tokens WHERE token = ?').run(token);
 
-  res.json({ success: true, api_key: record.api_key, email: record.email, name: record.name });
+  const storedSettings = record.settings_json ? JSON.parse(record.settings_json) : null;
+  res.json({ success: true, api_key: record.api_key, email: record.email, name: record.name, settings: storedSettings });
 });
 
 // ─── 首次設定（無任何管理員時才開放）────────────────────────────────────────

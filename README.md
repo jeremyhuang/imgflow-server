@@ -83,7 +83,7 @@ docker compose up -d
 1. 在 Container Manager → 專案 → `imgflow-server`，確認狀態為 **執行中（Running）**
 2. 瀏覽器開啟 `http://NAS的IP:3000/health`，應看到：
    ```json
-   { "status": "ok", "version": "0.1.8" }
+   { "status": "ok", "version": "0.1.9" }
    ```
 3. 開啟 `http://NAS的IP:3000/admin`，首次進入自動跳 `/admin/setup`，建立管理員帳號後登入
 
@@ -220,7 +220,7 @@ nas-image-service/
 
 ### `package.json`
 
-版本：`0.1.8`，主入口：`src/index.js`。
+版本：`0.1.9`，主入口：`src/index.js`。
 
 **相依套件：**
 
@@ -273,6 +273,7 @@ SQLite 資料庫初始化與 schema 管理。
 | `oauth_states` | OAuth flow 暫存 state（state, redirect_uri, expires_at） |
 | `auth_tokens` | OAuth 完成後的一次性 token（token, api_key_id, expires_at） |
 | `settings` | 系統設定 key/value 表（session_secret、google_client_id、google_client_secret、google_callback_url） |
+| `client_settings` | 每位客戶的外掛設定備份（client_id PK, settings_json, updated_at）；供重新安裝後還原設定 |
 
 **首次啟動自動執行：**
 
@@ -358,7 +359,7 @@ API 請求驗證 middleware。
 |------|------|
 | `GET /auth/google` | 產生 state、存入 `oauth_states` 表（含 wp_url），redirect 到 Google OAuth 授權頁 |
 | `GET /auth/google/callback` | 接收 code + state，驗證 state，向 Google 換取 id_token，解析 email/sub，找或建 client_accounts，建 api_keys，建 auth_token，redirect 回 WordPress（帶 `?wio_token=xxx`） |
-| `GET /auth/exchange` | WordPress plugin 呼叫此端點，用一次性 token 換取 api_key + email + name，token 使用後刪除 |
+| `GET /auth/exchange` | WordPress plugin 呼叫此端點，用一次性 token 換取 api_key + email + name + settings（如有備份則一併回傳），token 使用後刪除 |
 | `GET /admin/setup` | 首次設定頁，無管理員帳號時開放；建立後永久關閉 |
 | `POST /admin/setup` | 建立第一個 superadmin 帳號 |
 | `GET /admin/login` | 顯示登入頁；若無帳號自動 redirect 到 `/admin/setup` |
@@ -371,7 +372,15 @@ API 請求驗證 middleware。
 
 掛載路徑：`/`，對外提供 `POST /api/process`。
 
-流程：
+**端點：**
+
+| 路由 | 說明 |
+|------|------|
+| `GET /api/verify` | 驗證 API Key 是否有效（apiAuth 保護），回傳 `{ status: 'ok' }` |
+| `POST /api/process` | 圖片處理（multipart/form-data，apiAuth 保護） |
+| `POST /api/user/settings` | 儲存客戶的外掛設定（JSON body，apiAuth 保護）；WP 每次儲存設定後非阻塞推送 |
+
+`POST /api/process` 流程：
 
 1. `apiAuth` middleware 驗證 API Key 與配額（以 SUM(action_count) 計）
 2. `multer` 接收 `multipart/form-data` 中的 `image` 欄位（memory storage）
@@ -618,7 +627,7 @@ Content-Type: multipart/form-data
 ### `GET /health`
 
 ```json
-{ "status": "ok", "version": "0.1.8" }
+{ "status": "ok", "version": "0.1.9" }
 ```
 
 ---
@@ -643,11 +652,15 @@ redirect → WordPress admin.php?page=wio&wio_token=zzz
     │
     ▼  （WordPress plugin admin_init hook 偵測 wio_token）
 GET /auth/exchange?token=zzz
-    │  回傳 { api_key, email, name }，刪除 auth_token
+    │  回傳 { api_key, email, name, settings? }，刪除 auth_token
     ▼
 WIO_Settings::save_oauth() 儲存 api_key + email + name
+    │  若 settings 不為 null → 存入 transient wio_restore_settings
     ▼
 redirect 回設定頁，顯示「已成功連結」
+    │  若有還原設定 → 頁面顯示「是否還原設定」橫幅
+    ▼  （用戶點「還原設定」）
+wio_apply_restore AJAX → WIO_Settings::save() 寫入舊設定，設定同步推送至 NAS
 ```
 
 ---
@@ -657,6 +670,6 @@ redirect 回設定頁，顯示「已成功連結」
 | 分支 | 版號 |
 |------|------|
 | main | `0.0.1` |
-| develop | `0.1.8` |
+| develop | `0.1.9` |
 
 正式上線版本從 `1.0.0` 開始。

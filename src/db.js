@@ -90,6 +90,13 @@ db.exec(`
     expires_at TEXT    NOT NULL,
     FOREIGN KEY (api_key_id) REFERENCES api_keys(id)
   );
+
+  CREATE TABLE IF NOT EXISTS client_settings (
+    client_id     INTEGER PRIMARY KEY,
+    settings_json TEXT    NOT NULL DEFAULT '{}',
+    updated_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (client_id) REFERENCES client_accounts(id) ON DELETE CASCADE
+  );
 `);
 
 // Migration: add action_count for existing DBs that predate the column
