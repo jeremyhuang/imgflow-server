@@ -95,6 +95,7 @@ async function processImage(imageBuffer, options = {}) {
   let { width, height } = meta;
 
   let pipeline = sharp(imageBuffer);
+  let watermarkApplied = false;
 
   // ─── 加浮水印 ──────────────────────────────────────────────────────────────
   if (doWatermark && watermarkUrl && width >= minWidthForWm) {
@@ -154,29 +155,42 @@ async function processImage(imageBuffer, options = {}) {
       top,
       blend: 'over',
     }]);
+    watermarkApplied = true;
+  }
+
+  // ─── 中間緩衝：浮水印後、壓縮前（無損 PNG）──────────────────────────────
+  // 當浮水印有套用時才執行額外的 toBuffer；否則直接用原始 imageBuffer
+  let sourceBuf;
+  if (watermarkApplied) {
+    sourceBuf = await pipeline.png({ compressionLevel: 1 }).toBuffer();
+  } else {
+    sourceBuf = imageBuffer;
   }
 
   // ─── 壓縮輸出 ─────────────────────────────────────────────────────────────
-  // doCompress=false 時以接近無損品質輸出（確保浮水印仍可合成）
   let outputMime;
   let outputBuffer;
 
   if (format === 'png') {
     outputMime = 'image/png';
-    outputBuffer = await pipeline
+    outputBuffer = await sharp(sourceBuf)
       .png({ compressionLevel: doCompress ? 9 : 0, adaptiveFiltering: doCompress })
       .toBuffer();
   } else {
     outputMime = 'image/jpeg';
-    outputBuffer = await pipeline
+    outputBuffer = await sharp(sourceBuf)
       .jpeg({ quality: doCompress ? quality : 100, mozjpeg: true })
       .toBuffer();
   }
 
+  const skipCompress = doCompress && outputBuffer.length >= inputSize;
+
   // ─── 輸出 WebP ─────────────────────────────────────────────────────────────
+  // 壓縮成功 → 從更小的 outputBuffer 轉；壓縮 skip → 從 sourceBuf（浮水印後原品質）轉
   let webpResult = null;
   if (doWebp) {
-    const webpBuffer = await sharp(outputBuffer)
+    const webpSrc = skipCompress ? sourceBuf : outputBuffer;
+    const webpBuffer = await sharp(webpSrc)
       .webp({ quality: webpQuality })
       .toBuffer();
 
@@ -186,8 +200,7 @@ async function processImage(imageBuffer, options = {}) {
     };
   }
 
-  // 壓縮後反而變大 → 告知呼叫端跳過回寫，省去圖片傳輸
-  if (outputBuffer.length >= inputSize) {
+  if (skipCompress) {
     return { inputSize, skipped: true, webp: webpResult };
   }
 
