@@ -83,7 +83,7 @@ docker compose up -d
 1. 在 Container Manager → 專案 → `imgflow-server`，確認狀態為 **執行中（Running）**
 2. 瀏覽器開啟 `http://NAS的IP:3000/health`，應看到：
    ```json
-   { "status": "ok", "version": "0.1.11" }
+   { "status": "ok", "version": "0.1.12" }
    ```
 3. 開啟 `http://NAS的IP:3000/admin`，首次進入自動跳 `/admin/setup`，建立管理員帳號後登入
 
@@ -165,7 +165,8 @@ nas-image-service/
     │       ├── tiers.js
     │       ├── users.js
     │       ├── stats.js
-    │       └── settings.js
+    │       ├── settings.js
+    │       └── log.js
     ├── views/
     │   ├── login.ejs
     │   ├── setup.ejs
@@ -175,6 +176,7 @@ nas-image-service/
     │   ├── users.ejs
     │   ├── stats.ejs
     │   ├── settings.ejs
+    │   ├── log.ejs
     │   └── partials/
     │       ├── header.ejs
     │       └── footer.ejs
@@ -220,7 +222,7 @@ nas-image-service/
 
 ### `package.json`
 
-版本：`0.1.11`，主入口：`src/index.js`。
+版本：`0.1.12`，主入口：`src/index.js`。
 
 **相依套件：**
 
@@ -303,11 +305,20 @@ SQLite 資料庫初始化與 schema 管理。
     size: number,
   },
   webp?: {
-    data: string,         // base64 WebP（options.outputWebp = true 時才有）
+    data: string,         // base64 WebP（有 webp action 時）
     size: number,
   }
 }
+
+// 壓縮後反而變大時（skipped）
+{
+  inputSize: number,
+  skipped: true,
+  webp?: { data: string, size: number },
+}
 ```
+
+`skipped: true` 時不回傳 `output`，呼叫端應保留原始檔案。WebP 在 skipped 時從浮水印後的中間緩衝（原品質）轉換，確保品質不劣化。
 
 **options 物件：**
 
@@ -517,6 +528,19 @@ API 請求驗證 middleware。
 
 ---
 
+### `src/routes/admin/log.js`
+
+掛載路徑：`/admin/log`，套用 `adminAuth` middleware。
+
+`GET /` — 查詢 `usage_logs`，支援兩個篩選參數：
+- `client_id`：篩選特定客戶（整數，0 = 全部）
+- `action`：可重複（陣列），篩選含特定操作的記錄（`compress` / `watermark` / `webp`），多選為 OR 邏輯，使用 `actions_json LIKE` 條件
+- 分頁：每頁 50 筆
+- 同時查詢所有客戶清單供篩選下拉選單使用
+- 渲染 `log.ejs`，傳入 `logs`、`clients`、`filter_client`、`filter_actions`、`page`、`total_pages`
+
+---
+
 ### `src/views/setup.ejs`
 
 首次設定頁（獨立版面，不含 sidebar）。
@@ -527,7 +551,19 @@ API 請求驗證 middleware。
 
 ### `src/views/settings.ejs`
 
-系統設定頁。表單欄位：Google Client ID、Google Client Secret（password 輸入）、服務網域（填入後即時顯示組合出的 Callback URL 供複製）。儲存後顯示成功通知。
+系統設定頁。表單欄位：Google Client ID、Google Client Secret（password 輸入，附顯示/隱藏切換）、服務網域（填入後即時顯示組合出的 Callback URL 供複製）。儲存後顯示成功通知。
+
+---
+
+### `src/views/log.ejs`
+
+處理記錄頁。
+
+頂部篩選列：客戶下拉選單 + 操作多選 checkbox（compress / watermark / webp），送出後以 GET query string 重新載入；`qs()` helper 函式負責將陣列序列化為重複的 `action=` 參數。
+
+記錄表格欄位：縮圖（圖片不存在顯示 SVG placeholder）、檔名（來自 `filename` 欄位）、時間、客戶名稱、操作（色碼徽章）、輸入大小、輸出大小、WebP 大小、處理時間（ms）。
+
+每頁 50 筆，底部顯示分頁連結（保留目前篩選參數）。
 
 ---
 
@@ -627,7 +663,7 @@ Content-Type: multipart/form-data
 ### `GET /health`
 
 ```json
-{ "status": "ok", "version": "0.1.11" }
+{ "status": "ok", "version": "0.1.12" }
 ```
 
 ---
@@ -670,6 +706,6 @@ wio_apply_restore AJAX → WIO_Settings::save() 寫入舊設定，設定同步�
 | 分支 | 版號 |
 |------|------|
 | main | `0.0.1` |
-| develop | `0.1.11` |
+| develop | `0.1.12` |
 
 正式上線版本從 `1.0.0` 開始。
