@@ -129,15 +129,48 @@ function qs(overrides) {
 </div>
 
 <% if (total_pages > 1) { %>
-<div style="display:flex;gap:6px;margin-top:16px;align-items:center;">
-  <% if (current_page > 1) { %>
-    <a href="<%= qs({ page: current_page - 1 }) %>" class="btn btn-sm btn-secondary">‹ 上一頁</a>
-  <% } %>
-  <span style="font-size:13px;color:#666;">第 <%= current_page %> / <%= total_pages %> 頁</span>
-  <% if (current_page < total_pages) { %>
-    <a href="<%= qs({ page: current_page + 1 }) %>" class="btn btn-sm btn-secondary">下一頁 ›</a>
+<%
+  var cur = current_page;
+  var show = {};
+  show[1] = show[total_pages] = true;
+  for (var pi = Math.max(1, cur-2); pi <= Math.min(total_pages, cur+2); pi++) show[pi] = true;
+  var nums = Object.keys(show).map(Number).sort(function(a,b){ return a-b; });
+%>
+<div style="display:flex;gap:4px;margin-top:16px;align-items:center;flex-wrap:wrap;">
+  <%# 上一頁 %>
+  <% if (cur > 1) { %>
+    <a href="<%= qs({ page: cur-1 }) %>" class="btn btn-sm btn-secondary">‹</a>
+  <% } else { %>
+    <span class="btn btn-sm btn-secondary" style="opacity:.4;cursor:default;">‹</span>
   <% } %>
 
+  <%# 頁碼 + 省略號 %>
+  <% var prev = 0; %>
+  <% nums.forEach(function(p) { %>
+    <% if (prev && p - prev > 1) { %><span style="padding:0 4px;color:#999;line-height:30px;">…</span><% } %>
+    <% if (p === cur) { %>
+      <span class="btn btn-sm btn-primary" style="cursor:default;"><%= p %></span>
+    <% } else { %>
+      <a href="<%= qs({ page: p }) %>" class="btn btn-sm btn-secondary"><%= p %></a>
+    <% } %>
+    <% prev = p; %>
+  <% }); %>
+
+  <%# 下一頁 %>
+  <% if (cur < total_pages) { %>
+    <a href="<%= qs({ page: cur+1 }) %>" class="btn btn-sm btn-secondary">›</a>
+  <% } else { %>
+    <span class="btn btn-sm btn-secondary" style="opacity:.4;cursor:default;">›</span>
+  <% } %>
+
+  <%# 跳頁 %>
+  <form method="get" action="" style="display:inline-flex;align-items:center;gap:4px;margin-left:8px;font-size:13px;color:#666;">
+    <% var qs_hidden = qs({ page: '__PAGE__' }).replace('page=__PAGE__','').replace(/^\?&?/,'').replace(/&$/,''); %>
+    <% if (filter_client) { %><input type="hidden" name="client_id" value="<%= filter_client %>"><% } %>
+    <% (filter_actions || []).forEach(function(a) { %><input type="hidden" name="action" value="<%= a %>"><% }); %>
+    跳至第 <input type="number" name="page" min="1" max="<%= total_pages %>" value="<%= cur %>" style="width:52px;padding:2px 5px;text-align:center;border:1px solid #ccc;border-radius:4px;"> / <%= total_pages %> 頁
+    <button type="submit" class="btn btn-sm btn-secondary">Go</button>
+  </form>
 </div>
 <% } %>
 
