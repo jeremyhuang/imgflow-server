@@ -1,5 +1,12 @@
 <%- include('partials/header') %>
 
+<% if (!oauthReady) { %>
+<div class="alert" style="background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  <span>尚未設定 Google OAuth — 客戶無法透過 Google 帳號登入。請前往 <a href="/admin/settings" style="color:#9a3412;font-weight:600;">系統設定</a> 完成設定。</span>
+</div>
+<% } %>
+
 <div class="stats-grid">
   <div class="card">
     <div class="card-num"><%= stats.totalClients %></div>

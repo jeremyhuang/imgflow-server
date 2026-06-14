@@ -2,7 +2,7 @@
 
 const express   = require('express');
 const adminAuth = require('../../middleware/adminAuth');
-const { db }    = require('../../db');
+const { db, getSetting } = require('../../db');
 const { version } = require('../../../package.json');
 
 const router = express.Router();
@@ -27,10 +27,13 @@ router.get('/', (req, res) => {
   const monthlyImages = db.prepare("SELECT COUNT(*) as c FROM usage_logs WHERE created_at >= datetime('now', 'start of month')").get().c;
   const todayImages   = db.prepare("SELECT COUNT(*) as c FROM usage_logs WHERE created_at >= datetime('now', 'start of day')").get().c;
 
+  const oauthReady = !!(getSetting('google_client_id') && getSetting('google_client_secret') && getSetting('google_callback_url'));
+
   res.render('dashboard', {
     page: 'dashboard',
     title: '總覽',
     stats: { totalClients, totalKeys, monthlyImages, todayImages },
+    oauthReady,
   });
 });
 
